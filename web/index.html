@@ -7,9 +7,10 @@
       name="description"
       content="Auditable claim-to-source verification with human final judgment."
     />
-    <meta name="theme-color" content="#080b0c" />
-    <title>ClaimTrellis — Follow the evidence.</title>
+    <meta name="theme-color" content="#edf3f6" />
+    <title>ClaimTrellis — Every claim, back to the evidence.</title>
     <link rel="icon" type="image/svg+xml" href="/assets/mark.svg" />
+    <script src="/assets/theme.js"></script>
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
@@ -24,125 +25,84 @@
         />ClaimTrellis<span class="alpha">v0.1</span></a
       >
       <nav class="desktop-nav" aria-label="Main navigation">
-        <a href="#product">Product</a><a href="#method">Method</a
-        ><a href="#benchmark">Benchmark</a><a href="/docs">Docs ↗</a
+        <a href="#overview">Overview</a><a href="#workflow">Workflow</a
         ><a href="https://github.com/Beverly621/claim-trellis">GitHub ↗</a>
       </nav>
       <details class="mobile-nav">
         <summary aria-label="Open navigation">Menu</summary>
         <nav aria-label="Mobile navigation">
-          <a href="#product">Product</a><a href="#method">Method</a
-          ><a href="#benchmark">Benchmark</a><a href="/docs">Docs ↗</a
+          <a href="#overview">Overview</a><a href="#workflow">Workflow</a
           ><a href="https://github.com/Beverly621/claim-trellis">GitHub ↗</a>
         </nav>
       </details>
-      <button class="nav-cta" id="header-action" type="button">Continue as guest <span>↗</span></button>
+      <div class="header-tools">
+        <div class="theme-switch" role="group" aria-label="Color theme">
+          <button type="button" data-theme-choice="light" aria-label="Light theme" aria-pressed="true">☀</button>
+          <button type="button" data-theme-choice="night" aria-label="Night theme" aria-pressed="false">☾</button>
+        </div>
+        <button class="nav-cta" id="header-action" type="button">Continue as guest <span>↗</span></button>
+      </div>
     </header>
     <main>
-      <section class="hero shell" id="product">
+      <section class="hero shell" id="overview">
         <div class="hero-top">
-          <span class="eyebrow"
-            ><i class="live-dot"></i> Verification, with a paper trail.</span
-          ><span class="mono small">INDEPENDENT / OPEN SOURCE</span>
+          <span class="eyebrow">INDEPENDENT RESEARCH INSTRUMENT</span>
+          <span class="mono small">FIELD NOTES / 001</span>
         </div>
-        <h1 class="wordmark">CLAIM<span>TRELLIS</span><sup>↗</sup></h1>
         <div class="hero-content">
           <div class="hero-copy">
-            <p class="hero-title">
-              Follow the evidence.<br /><span>Own the judgment.</span>
-            </p>
-            <p class="lede">
-              Auditable claim-to-source verification<br />with human final
-              judgment.
-            </p>
+            <p class="hero-overline">A paper trail for the claims that matter.</p>
+            <h1 class="wordmark">ClaimTrellis</h1>
+            <p class="hero-title">Every claim, back to the evidence.</p>
             <div class="actions">
-              <button class="button primary magnetic" id="hero-primary" type="button">Continue as guest <span>↗</span></button>
-              <button class="text-link" id="hero-secondary" type="button" hidden>Sign in <span>↗</span></button>
-            </div>
-          </div>
-          <div
-            class="trellis"
-            aria-label="Illustrative claim-to-source connection diagram"
-          >
-            <div class="trellis-grid"></div>
-            <svg class="trellis-art" viewBox="0 0 640 400" aria-hidden="true">
-              <defs>
-                <linearGradient id="thread" x1="0" x2="1">
-                  <stop stop-color="#92eddd" stop-opacity=".08" />
-                  <stop offset=".48" stop-color="#92eddd" />
-                  <stop offset="1" stop-color="#92eddd" stop-opacity=".15" />
-                </linearGradient>
-              </defs>
-              <g
-                class="threads"
-                fill="none"
-                stroke="url(#thread)"
-                stroke-width=".75"
-              ></g>
-              <g stroke="#93eddf" fill="#0b1113">
-                <path d="M60 200H160M480 200H580" stroke-dasharray="3 6" />
-                <circle cx="320" cy="200" r="72" opacity=".3" />
-                <circle cx="320" cy="200" r="100" opacity=".12" />
-                <circle cx="60" cy="200" r="5" />
-                <circle cx="580" cy="200" r="5" />
-              </g>
-              <g class="orbit-dot" fill="#b2ffee">
-                <circle cx="320" cy="128" r="3" />
-              </g>
-              <text
-                x="320"
-                y="193"
-                text-anchor="middle"
-                fill="#b2ffee"
-                font-size="13"
-                letter-spacing="4"
-              >
-                SOURCE
-              </text>
-              <text
-                x="320"
-                y="213"
-                text-anchor="middle"
-                fill="#768d87"
-                font-size="9"
-                letter-spacing="2"
-              >
-                CONTEXT PRESERVED
-              </text>
-            </svg>
-            <div class="node node-claim">
-              <span class="micro">[01] CLAIM</span>
-              <p>The method improves<br />retrieval accuracy.</p>
-              <i></i>
-            </div>
-            <div class="node node-source">
-              <span class="micro">[02] EVIDENCE LOCATED</span>
-              <p>“…on the secondary task.”</p>
-              <span class="mono small">¶ 04 · Results · 216–384</span>
-            </div>
-            <div class="node node-judgment">
-              <span class="micro">[03] PROPOSED RELATION</span>
-              <p>partially_supports <span>↗</span></p>
-              <div class="mini-bar"><i></i></div>
-            </div>
-            <div class="trellis-caption">
-              <span class="crosshair">+</span> ILLUSTRATIVE SYSTEM MAP
-              <span>HUMAN REVIEW REQUIRED</span>
+              <button class="button primary magnetic" id="hero-primary" type="button"><span class="cta-icon" aria-hidden="true">🕶</span> Continue as guest <span>↗</span></button>
+              <button class="text-link" id="hero-secondary" type="button" hidden><span class="cta-icon" aria-hidden="true">✉</span> Sign in <span>↗</span></button>
             </div>
           </div>
         </div>
+        <section class="research-shelf" aria-label="Research Shelf">
+          <div class="shelf-heading"><span>THE RESEARCH SHELF</span><span>CONTEXT / NOT ENDORSEMENT</span></div>
+          <div class="shelf-grid">
+            <article class="shelf-tile"><span>01 / GENERAL SCIENCE</span><strong>Nature</strong><small>VOL. 01 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>02 / GENERAL SCIENCE</span><strong>Science</strong><small>VOL. 02 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>03 / BIOLOGY</span><strong>Cell</strong><small>VOL. 03 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>04 / MEDICINE</span><strong>NEJM</strong><small>VOL. 04 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>05 / MEDICINE</span><strong>The Lancet</strong><small>VOL. 05 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>06 / MEDICINE</span><strong>JAMA</strong><small>VOL. 06 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>07 / MEDICINE</span><strong>BMJ</strong><small>VOL. 07 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>08 / SCIENCE</span><strong>PNAS</strong><small>VOL. 08 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>09 / MEDICINE</span><strong>Nature Medicine</strong><small>VOL. 09 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>10 / COMPUTING</span><strong>Nature Machine Intelligence</strong><small>VOL. 10 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>11 / BIOTECHNOLOGY</span><strong>Nature Biotechnology</strong><small>VOL. 11 · READING CONTEXT</small></article>
+            <article class="shelf-tile"><span>12 / SYSTEMS BIOLOGY</span><strong>Cell Systems</strong><small>VOL. 12 · READING CONTEXT</small></article>
+          </div>
+          <p class="shelf-note">Publication names identify reading contexts only. ClaimTrellis is not affiliated with or endorsed by these journals.</p>
+        </section>
         <div class="hero-bottom">
           <button type="button" id="motion-toggle" aria-pressed="false">
             Pause motion <span>Ⅱ</span></button
-          ><a href="#method" aria-label="Scroll to method">SCROLL TO TRACE ↓</a>
+          ><a href="#workflow" aria-label="Scroll to workflow">SCROLL TO WORKFLOW ↓</a>
         </div>
       </section>
 
-      <section class="method-section shell" id="method">
+      <section class="overview-section shell" aria-label="Verification overview">
+        <div class="section-label"><span>01 / OVERVIEW</span><span>FROM ASSERTION TO AUDIT TRAIL</span></div>
+        <div class="overview-grid">
+          <article><span>01 / INPUT</span><h2>Claim</h2><p>The exact statement under review.</p></article>
+          <article><span>02 / ORIGIN</span><h2>Source</h2><p>The document as supplied.</p></article>
+          <article><span>03 / READING</span><h2>Selected Evidence</h2><p>A traceable passage, with context.</p></article>
+          <article><span>04 / PROPOSAL</span><h2>Structured Proposal</h2><p>A relation and visible uncertainty.</p></article>
+          <article><span>05 / CONTROL</span><h2>Human Judgment</h2><p>Accept, revise, reject or defer.</p></article>
+          <article><span>06 / MEMORY</span><h2>Audit Trail</h2><p>Every version and intervention preserved.</p></article>
+        </div>
+      </section>
+
+      <section class="method-section shell" id="workflow">
         <div class="section-label">
-          <span>01 / THE METHOD</span
+          <span>02 / WORKFLOW</span
           ><span>A SOURCE IS MORE THAN A CITATION.</span>
         </div>
+        <ol class="workflow-sequence" aria-label="Verification steps"><li>Claim</li><li>Source</li><li>Retrieve</li><li>Check</li><li>Judge</li><li>Human review</li><li>Preserve</li></ol>
         <div class="editorial-heading reveal">
           <h2>
             ONE CLAIM.<br />ONE SOURCE.<br /><span class="dim"
@@ -546,7 +506,7 @@
       <div class="footer-bottom">
         <span>INDEPENDENT OPEN SOURCE / APACHE-2.0</span>
         <nav aria-label="Footer navigation">
-          <a href="/docs">Documentation</a><a href="#method">Method</a
+          <a href="/docs">Documentation</a><a href="#workflow">Workflow</a
           ><a
             href="https://github.com/Beverly621/claim-trellis/blob/main/SECURITY.md"
             >Security</a

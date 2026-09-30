@@ -38,16 +38,6 @@
     el.classList.add("waiting");
     observer.observe(el);
   });
-  const threads = document.querySelector(".threads");
-  for (let i = 0; i < 27; i++) {
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const displacement = (i - 13) * 11;
-    path.setAttribute(
-      "d",
-      `M60 200 C175 ${200 + displacement * 2.2},465 ${200 - displacement * 2.2},580 200`,
-    );
-    threads.append(path);
-  }
   if (matchMedia("(pointer:fine)").matches) {
     document.querySelectorAll(".magnetic").forEach((el) => {
       el.addEventListener("pointermove", (event) => {
