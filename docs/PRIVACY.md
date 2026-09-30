@@ -32,6 +32,10 @@ provider agreement; the open-source software cannot create that agreement.
 Local mode stores audit records in SQLite. Hosted mode stores owner-scoped audit records,
 selected evidence, feedback, proposal versions, revision runs and audit events in
 PostgreSQL. Raw PDF/DOCX/TXT/MD bytes and the full parsed source text are not persisted.
+Hosted provider usage rows record the owner ID, a secret-keyed HMAC of the canonical
+requester IP, audit ID for revisions, provider, operation, status, timestamps, optional
+token counts, and a sanitized error code. They do not store the raw IP, claim, evidence,
+provider key, or upstream error body. The HMAC secret is server-only and is not logged.
 The server verifies a Supabase access token and uses the anonymous Supabase user ID as
 the record owner. No email address is collected or stored by ClaimTrellis in this phase.
 The browser's Supabase session storage grants access to that anonymous identity; clearing

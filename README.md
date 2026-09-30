@@ -131,11 +131,15 @@ is requested. Clearing browser data, signing out, or changing devices before acc
 linking can make that anonymous workspace inaccessible, although its records remain on
 the server. Account linking is not implemented yet.
 
-Hosted paid-provider calls are disabled by default; only an operator who has added abuse
-protection and a per-user usage guard should opt in with
-`CLAIM_TRELLIS_HOSTED_PROVIDER_ENABLED=true`. Turnstile/CAPTCHA for anonymous signup
-and provider rate/usage limits remain launch blockers for broad promotion. See
-[privacy](docs/PRIVACY.md) and [security](SECURITY.md) before hosting user content.
+Hosted paid-provider calls are disabled by default. Migration `0002_provider_usage.sql`
+adds database-atomic reservations: 7 evaluations per user and 10 per public IP in a
+rolling 24 hours, plus 5 provider revisions per audit. Set a private, random
+`CLAIM_TRELLIS_IP_HASH_SECRET` on the server; raw IPs are not stored. Apply and verify
+the migration and run the PostgreSQL quota tests before setting
+`CLAIM_TRELLIS_HOSTED_PROVIDER_ENABLED=true`. A missing key or secret fails closed.
+Turnstile/CAPTCHA for anonymous signup and operational abuse monitoring remain launch
+blockers for broad promotion. See [privacy](docs/PRIVACY.md) and [security](SECURITY.md)
+before hosting user content.
 
 ## Seed literature benchmark
 

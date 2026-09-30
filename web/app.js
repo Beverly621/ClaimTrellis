@@ -89,14 +89,18 @@ const post = (path, body) =>
 async function loadHealth() {
   try {
     const health = await api("/healthz");
-    $("#health").textContent = health.provider_configured
+    const provider = ClaimTrellisAuth.providerAvailability(health);
+    $("#health").textContent = provider.available
       ? "● Service online · provider ready"
-      : "○ Service online · provider not configured";
-    $("#provider-label").textContent =
-      health.judgment_provider + " · " + health.jev_model;
+      : "○ Service online · provider unavailable";
+    $("#use-provider").checked = provider.available;
+    $("#use-provider").disabled = !provider.available;
+    $("#provider-label").textContent = provider.label;
   } catch {
     $("#health").textContent = "Service unavailable";
     $("#provider-label").textContent = "Provider status unavailable";
+    $("#use-provider").checked = false;
+    $("#use-provider").disabled = true;
   }
 }
 function probabilityBars(judgment) {

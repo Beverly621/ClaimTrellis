@@ -34,9 +34,16 @@ def pg_url() -> str:
         for role in ("anon", "authenticated"):
             if conn.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (role,)).fetchone() is None:
                 conn.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(role)))
-    assert asyncio.run(migrate(url, sslmode="disable")) in (["0001_persistence.sql"], [])
+    assert asyncio.run(migrate(url, sslmode="disable")) in (
+        ["0001_persistence.sql", "0002_provider_usage.sql"],
+        ["0002_provider_usage.sql"],
+        [],
+    )
     assert asyncio.run(migrate(url, sslmode="disable")) == []
-    assert asyncio.run(migration_status(url, sslmode="disable")) == [("0001_persistence.sql", True)]
+    assert asyncio.run(migration_status(url, sslmode="disable")) == [
+        ("0001_persistence.sql", True),
+        ("0002_provider_usage.sql", True),
+    ]
     return url
 
 

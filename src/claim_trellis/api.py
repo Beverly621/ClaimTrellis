@@ -14,6 +14,13 @@ from claim_trellis import __version__
 from claim_trellis.audit import run_audit
 from claim_trellis.auth import AuthPrincipal, principal
 from claim_trellis.config import Settings, get_settings
+from claim_trellis.hosted_usage import (
+    HostedProviderUnavailable,
+    HostedUsageLimit,
+    MeteredProvider,
+    PostgresUsageGuard,
+    requester_ip_hash,
+)
 from claim_trellis.ingestion import IngestionError, parse_document_bytes
 from claim_trellis.models import (
     AuditEvent,
@@ -28,6 +35,8 @@ from claim_trellis.models import (
     RevisionRun,
 )
 from claim_trellis.postgres_store import PostgresAuditStore
+from claim_trellis.provider import JudgmentProvider
+from claim_trellis.providers import TypeSafeJevProvider
 from claim_trellis.retrieval import retrieve
 from claim_trellis.revisions import revise
 from claim_trellis.storage import AuditStore, LifecycleConflict
@@ -72,6 +81,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.lifecycle_store = lifecycle_store
     app.state.judgment_provider = None
+    app.state.usage_guard = (
+        PostgresUsageGuard(store.pool) if isinstance(store, PostgresAuditStore) else None
+    )
 
     def database() -> AuditStoreProtocol:
         return cast(AuditStoreProtocol, app.state.lifecycle_store)
@@ -79,6 +91,49 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(LifecycleConflict)
     async def lifecycle_conflict(request: Request, exc: LifecycleConflict) -> JSONResponse:
         return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+    @app.exception_handler(HostedUsageLimit)
+    async def hosted_usage_limit(request: Request, exc: HostedUsageLimit) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": {"code": "hosted_provider_limit", "scope": exc.scope, "message": str(exc)}
+            },
+        )
+
+    @app.exception_handler(HostedProviderUnavailable)
+    async def hosted_provider_unavailable(
+        request: Request, exc: HostedProviderUnavailable
+    ) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+    def hosted_provider(identity: AuthPrincipal, request: Request) -> MeteredProvider:
+        active: Settings = app.state.settings
+        if not active.hosted_provider_enabled:
+            raise HostedProviderUnavailable("Hosted provider evaluation is not enabled.")
+        provider: JudgmentProvider | None = app.state.judgment_provider
+        if provider is None and active.judgment_provider == "typesafe_jev" and active.jev_api_key:
+            provider = TypeSafeJevProvider(
+                api_key=active.jev_api_key,
+                endpoint=active.jev_endpoint,
+                model=active.jev_model,
+                timeout_seconds=active.jev_timeout_seconds,
+                max_retries=active.jev_max_retries,
+            )
+        if (
+            provider is None
+            or not active.jev_api_key
+            or not active.ip_hash_secret
+            or app.state.usage_guard is None
+        ):
+            raise HostedProviderUnavailable("Hosted provider is unavailable.")
+        return MeteredProvider(
+            provider,
+            app.state.usage_guard,
+            identity.user_id,
+            requester_ip_hash(request, active.ip_hash_secret),
+            "audit",
+        )
 
     @app.get("/healthz")
     def health() -> dict[str, object]:
@@ -88,6 +143,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": __version__,
             "judgment_provider": active.judgment_provider,
             "provider_configured": bool(active.jev_api_key),
+            "hosted_provider_enabled": active.hosted_provider_enabled,
+            "hosted_provider_available": bool(
+                active.hosted_provider_enabled and active.jev_api_key and active.ip_hash_secret
+            ),
             "jev_model": active.jev_model,
             "auto_accept_enabled": False,
             "storage_backend": active.selected_storage_backend,
@@ -139,19 +198,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def create_audit(
         request: AuditRequest,
         identity: Principal,
+        http_request: Request,
     ) -> ClaimAudit:
         active: Settings = app.state.settings
         if len(request.source_text) > active.max_source_chars:
             raise HTTPException(status_code=413, detail="Source text exceeds the configured limit.")
-        if (
-            active.auth_mode == "supabase"
-            and request.use_judgment_provider
-            and not active.hosted_provider_enabled
-        ):
-            raise HTTPException(
-                status_code=503, detail="Hosted provider evaluation is not enabled."
-            )
-        audit = await run_audit(request, active, judgment_provider=app.state.judgment_provider)
+        provider = app.state.judgment_provider
+        if active.auth_mode == "supabase" and request.use_judgment_provider:
+            provider = hosted_provider(identity, http_request)
+        audit = await run_audit(request, active, judgment_provider=provider)
         return await database().save(identity.user_id, audit)
 
     @app.get("/api/v1/audits", response_model=list[ClaimAudit])
@@ -194,23 +249,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/v1/audits/{audit_id}/revisions", response_model=RevisionRun)
     async def request_revision(
-        audit_id: str, request: RevisionRequest, identity: Principal
+        audit_id: str, request: RevisionRequest, identity: Principal, http_request: Request
     ) -> RevisionRun:
         await get_audit(audit_id, identity)
-        if (
-            resolved_settings.auth_mode == "supabase"
-            and not resolved_settings.hosted_provider_enabled
-        ):
-            raise HTTPException(
-                status_code=503, detail="Hosted provider evaluation is not enabled."
-            )
+        usage_guard = None
+        ip_hash = None
+        if resolved_settings.auth_mode == "supabase":
+            # Perform availability and trusted-IP checks before creating a revision run.
+            metered = hosted_provider(identity, http_request)
+            usage_guard = metered.guard
+            ip_hash = metered.ip_hash
+            provider = metered.provider
+        else:
+            provider = app.state.judgment_provider
         return await revise(
             database(),
             audit_id,
             request,
             resolved_settings,
-            app.state.judgment_provider,
+            provider,
             owner_user_id=identity.user_id,
+            usage_guard=usage_guard,
+            ip_hash=ip_hash,
         )
 
     @app.get("/api/v1/audits/{audit_id}/events", response_model=list[AuditEvent])

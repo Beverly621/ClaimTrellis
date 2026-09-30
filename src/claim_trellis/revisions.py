@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from claim_trellis.config import Settings
+from claim_trellis.hosted_usage import HostedUsageLimit, MeteredProvider, PostgresUsageGuard
 from claim_trellis.models import RevisionContext, RevisionRequest, RevisionRun
 from claim_trellis.policy import propose_disposition
 from claim_trellis.provider import JudgmentProvider, ProviderError
@@ -19,6 +20,8 @@ async def revise(
     provider: JudgmentProvider | None = None,
     *,
     owner_user_id: str = LOCAL_USER_ID,
+    usage_guard: PostgresUsageGuard | None = None,
+    ip_hash: str | None = None,
 ) -> RevisionRun:
     lifecycle_store = (
         SQLiteAsyncStore(legacy_store=store) if isinstance(store, AuditStore) else store
@@ -55,6 +58,18 @@ async def revise(
                 "provider_unavailable",
                 "Configure the judgment provider before retrying.",
             )
+        if usage_guard is not None:
+            if ip_hash is None:
+                raise ValueError("Hosted revision requires a requester IP hash.")
+            provider = MeteredProvider(
+                provider,
+                usage_guard,
+                owner_user_id,
+                ip_hash,
+                "revision",
+                audit_id=audit_id,
+                usage_id=run.revision_id,
+            )
         context = RevisionContext(
             previous_proposal=(await lifecycle_store.proposals(owner_user_id, audit_id))[-1],
             deterministic_checks=audit.deterministic_checks,
@@ -82,6 +97,14 @@ async def revise(
                 "interrupted",
                 "Evaluation was interrupted. Retry with the preserved feedback.",
             )
+        )
+        raise
+    except HostedUsageLimit:
+        await lifecycle_store.fail_revision(
+            owner_user_id,
+            run,
+            "hosted_provider_limit",
+            "Hosted provider usage limit reached. Try again later.",
         )
         raise
     except TimeoutError:
