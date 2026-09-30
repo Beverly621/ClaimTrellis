@@ -1,4 +1,16 @@
 (function (root) {
+  function providerAvailability(health) {
+    const available = health.auth_mode === "supabase"
+      ? Boolean(health.hosted_provider_available)
+      : Boolean(health.provider_configured);
+    return {
+      available,
+      label: available
+        ? `${health.judgment_provider} · ${health.jev_model}`
+        : "Hosted provider evaluation is currently unavailable.",
+    };
+  }
+
   function createManager(fetchImpl = fetch, createClient = () => root.supabase?.createClient) {
     let config = null;
     let client = null;
@@ -75,6 +87,8 @@
         const message =
           typeof detail === "string"
             ? detail
+            : detail?.code === "hosted_provider_limit"
+              ? "Free hosted evaluation limit reached for now. You can continue with deterministic checks or return later."
             : Array.isArray(detail)
               ? detail.map((error) => error.msg).join("; ")
               : `Request failed (${response.status})`;
@@ -85,10 +99,10 @@
       return body;
     }
 
-    return { start, request, mode: () => config?.provider || null };
+    return { start, request, mode: () => config?.provider || null, providerAvailability };
   }
 
-  const api = { createManager };
+  const api = { createManager, providerAvailability };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.ClaimTrellisAuth = createManager();
 })(typeof window !== "undefined" ? window : globalThis);

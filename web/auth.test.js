@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { createManager } = require("./auth.js");
+const { createManager, providerAvailability } = require("./auth.js");
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -13,6 +13,30 @@ const config = {
   supabase_url: "https://example.supabase.co",
   publishable_key: "sb_publishable_test",
 };
+
+test("hosted provider is visibly unavailable while the feature flag is off", () => {
+  assert.deepEqual(providerAvailability({
+    auth_mode: "supabase", provider_configured: true,
+    hosted_provider_enabled: false, hosted_provider_available: false,
+    judgment_provider: "typesafe_jev", jev_model: "jev-1.13.0",
+  }), {
+    available: false,
+    label: "Hosted provider evaluation is currently unavailable.",
+  });
+});
+
+test("structured hosted 429 receives safe deterministic fallback copy", async () => {
+  const manager = createManager(async (path) => {
+    if (path === "/api/v1/auth/config") return json({ enabled: false, provider: "local" });
+    return json({ detail: {
+      code: "hosted_provider_limit", scope: "ip", message: "Hosted provider usage limit reached."
+    } }, 429);
+  });
+  await assert.rejects(
+    manager.request("/api/v1/audits"),
+    /Free hosted evaluation limit reached for now. You can continue with deterministic checks/,
+  );
+});
 
 test("new guest signs in anonymously before protected history and sends bearer token", async () => {
   const paths = [];
