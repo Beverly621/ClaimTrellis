@@ -96,11 +96,28 @@ instructing clients to use `/revisions`, rather than silently pretending a provi
 Legacy deterministic-only human reviews remain readable and compatible; the new UI does
 not offer semantic acceptance when no provider judgment exists.
 
-Concurrency guarantees require all requests to share the same SQLite database. Existing
-Vercel ephemeral `/tmp` storage is not durable, shared multi-instance storage. This PR
-does not change hosting or introduce authentication: do not use a public shared instance
-for confidential sources or rely on its temporary history as a durable research archive.
-Downgrade by restoring the pre-upgrade database backup, not by deleting lifecycle tables.
+The original v1 implementation's concurrency guarantees required all requests to share
+one SQLite database; Vercel `/tmp` storage was neither durable nor shared across instances.
+That local mode remains single-user. Downgrade a local v1 database by restoring a backup,
+not by deleting lifecycle tables.
+
+## Hosted storage and history extension
+
+The original SQLite path above remains the local compatibility mode. Hosted mode instead
+uses PostgreSQL with an explicit schema migration and verified Supabase anonymous user
+ownership. Each mutation locks the owner-scoped audit row, checks proposal/state revision,
+updates the lifecycle and appends events in one transaction. Unique revision idempotency
+and one-active-revision constraints live in the database. Provider calls occur after the
+request/start transactions commit, never while a row lock is held. Event and revision
+ordering use database sequences. Proposal snapshots remain immutable; lifecycle status
+changes are stored separately. This preserves the six relation labels, four human actions,
+provider inputs and original revision semantics.
+
+The browser restores/creates its anonymous session before protected requests. The recent
+ledger and `/history` use owner-scoped API results, while `/?audit=<id>#result` restores
+the selected record after refresh. A missing or other-user ID returns 404. Local mode is
+single-user; hosted mode requires both PostgreSQL and Supabase Auth. Production migration
+and environment configuration are explicit operator steps, not automatic deploy behavior.
 
 ## UI v1.1 refinement
 

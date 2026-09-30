@@ -393,6 +393,12 @@
               Review guide <span aria-hidden="true">?</span>
             </button>
           </div>
+          <p id="workspace-identity" class="workspace-identity" hidden>
+            <strong>Guest workspace</strong> · Saved to this browser's anonymous
+            session. No email required. Clearing browser data, signing out, or
+            changing devices before linking an account makes this workspace
+            inaccessible.
+          </p>
           <form id="audit-form" class="audit-form">
             <div class="input-pane">
               <div class="pane-heading">
@@ -463,7 +469,7 @@
               <p id="form-status" role="status" aria-live="polite">
                 Ready when you are.
               </p>
-              <button id="submit-button" class="button primary" type="submit">
+              <button id="submit-button" class="button primary" type="submit" disabled>
                 Run audit <span>↗</span>
               </button>
             </div>
@@ -489,17 +495,16 @@
                 type="button"
                 id="refresh-history"
                 class="button secondary"
+                disabled
               >
                 Refresh ↻
               </button>
             </div>
-            <p class="small muted">
-              Records available on this service. Local installations retain
-              their SQLite history; ephemeral hosting may not.
-            </p>
+            <p class="small muted">Your recent records in this workspace.</p>
             <div id="history" aria-live="polite">
               <p class="empty">Loading records…</p>
             </div>
+            <a class="text-link" href="/history">View all history →</a>
           </section>
         </div>
       </section>
@@ -571,6 +576,8 @@
     </dialog>
     <script src="/assets/design.js" defer></script>
     <script src="/assets/evidence.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous" defer></script>
+    <script src="/assets/auth.js" defer></script>
     <script src="/assets/app.js" defer></script>
   </body>
 </html>

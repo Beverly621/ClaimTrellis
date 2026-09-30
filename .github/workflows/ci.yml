@@ -11,6 +11,19 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: claim_trellis_test
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d claim_trellis_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/claim_trellis_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,4 +34,5 @@ jobs:
       - run: ruff check .
       - run: mypy
       - run: pytest --cov=claim_trellis --cov-report=term-missing
-      - run: node --test web/evidence.test.js
+      - run: node --test web/*.test.js
+      - run: docker build -t claim-trellis-ci .

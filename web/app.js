@@ -22,6 +22,7 @@ const state = {
   revisions: [],
   pendingRequest: null,
   busy: false,
+  authReady: false,
   loadId: 0,
 };
 const percent = (value) =>
@@ -77,28 +78,7 @@ function openHelp(key, trigger) {
   $(".help-close").focus();
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(path, options);
-  let body;
-  try {
-    body = await response.json();
-  } catch {
-    body = null;
-  }
-  if (!response.ok) {
-    const detail = body?.detail;
-    const message =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((e) => e.msg).join("; ")
-          : "Request failed (" + response.status + ")";
-    const error = new Error(message);
-    error.status = response.status;
-    throw error;
-  }
-  return body;
-}
+const api = (path, options = {}) => ClaimTrellisAuth.request(path, options);
 const post = (path, body) =>
   api(path, {
     method: "POST",
@@ -328,6 +308,16 @@ async function openAudit(id, preserve = false) {
   ]);
   if (loadId !== state.loadId) return;
   renderAudit(audit, versions, revisions, events, saved);
+  const url = new URL(window.location.href);
+  url.searchParams.set("audit", audit.audit_id);
+  url.hash = "result";
+  window.history.replaceState(null, "", url);
+}
+function clearAuditUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("audit");
+  if (url.hash === "#result") url.hash = "workspace";
+  window.history.replaceState(null, "", url);
 }
 async function refreshCurrent(preserve = false) {
   if (state.busy || !state.audit) return;
@@ -335,8 +325,8 @@ async function refreshCurrent(preserve = false) {
 }
 function setBusy(busy) {
   state.busy = busy;
-  $("#submit-button").disabled = busy;
-  $("#refresh-history").disabled = busy;
+  $("#submit-button").disabled = busy || !state.authReady;
+  $("#refresh-history").disabled = busy || !state.authReady;
   document.querySelectorAll("[data-audit-id]").forEach((button) => {
     button.disabled = busy;
   });
@@ -445,7 +435,7 @@ async function handleReview(event) {
 async function loadHistory() {
   const container = $("#history");
   try {
-    const audits = await api("/api/v1/audits?limit=30");
+    const audits = await api("/api/v1/audits?limit=10");
     state.history = audits;
     container.innerHTML = audits.length
       ? audits
@@ -520,7 +510,7 @@ drop.addEventListener("drop", (event) => {
 });
 $("#audit-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (state.busy) return;
+  if (state.busy || !state.authReady) return;
   const file = sourceInput.files?.[0];
   if (!file) return;
   // Snapshot all inputs before awaiting file parsing.
@@ -574,7 +564,9 @@ $("#audit-form").addEventListener("submit", async (event) => {
     if (state.audit) await refreshCurrent(true).catch(showReviewError);
   }
 });
-$("#refresh-history").addEventListener("click", loadHistory);
+$("#refresh-history").addEventListener("click", () => {
+  if (state.authReady) loadHistory();
+});
 document.addEventListener("click", (event) => {
   const trigger = event.target.closest("[data-help]");
   if (trigger) openHelp(trigger.dataset.help, trigger);
@@ -584,5 +576,34 @@ $("#help-dialog").addEventListener("click", (event) => {
   if (event.target === event.currentTarget) event.currentTarget.close();
 });
 $("#help-dialog").addEventListener("close", () => helpReturnFocus?.focus());
-loadHealth();
-loadHistory();
+async function bootstrapWorkspace() {
+  state.authReady = false;
+  setBusy(false);
+  $("#form-status").textContent = "Preparing your workspace…";
+  try {
+    await ClaimTrellisAuth.start();
+    state.authReady = true;
+    setBusy(false);
+    $("#workspace-identity").hidden = false;
+    $("#form-status").textContent = "Ready when you are.";
+    await Promise.all([loadHealth(), loadHistory()]);
+    const auditId = new URL(window.location.href).searchParams.get("audit");
+    if (auditId) {
+      try {
+        await openAudit(auditId);
+        $("#result").scrollIntoView({ behavior: "instant" });
+      } catch (error) {
+        if (error.status === 404) {
+          clearAuditUrl();
+          $("#form-status").textContent = "That audit is unavailable in this workspace.";
+        } else {
+          $("#form-status").textContent = error.message;
+        }
+      }
+    }
+  } catch (error) {
+    $("#form-status").innerHTML = `${esc(error.message)} <button id="retry-workspace" type="button" class="text-link">Retry workspace ↻</button>`;
+    $("#retry-workspace").addEventListener("click", bootstrapWorkspace);
+  }
+}
+bootstrapWorkspace();

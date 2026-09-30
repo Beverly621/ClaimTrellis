@@ -1985,6 +1985,42 @@ body {
   line-height: 1.8;
   margin: 10px 0 24px;
 }
+.workspace-identity {
+  max-width: 780px;
+  margin: -22px 0 34px;
+  color: var(--muted);
+  font: 12px/1.7 var(--sans);
+}
+.workspace-identity strong {
+  color: var(--text);
+}
+.history-main {
+  min-height: 80vh;
+  padding-top: 140px;
+  padding-bottom: 90px;
+}
+.history-main h1 {
+  margin: 18px 0 24px;
+  font: 600 clamp(42px, 7vw, 92px)/1 var(--display);
+  letter-spacing: -0.06em;
+}
+.history-intro {
+  max-width: 70ch;
+  color: var(--muted);
+  font: 14px/1.7 var(--sans);
+}
+.history-main #history-status {
+  margin: 38px 0 12px;
+  color: var(--muted);
+  font: 11px var(--mono);
+}
+.history-main .history-item {
+  color: var(--text);
+  text-decoration: none;
+}
+.history-main #history-more {
+  margin: 28px 0 50px;
+}
 .selected-evidence-title {
   margin-bottom: 28px !important;
 }

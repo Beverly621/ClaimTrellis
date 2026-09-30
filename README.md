@@ -44,7 +44,8 @@ Read [the trust specification](docs/TRUST_SPEC.md) before deploying the software
 - Apply a fail-closed decision policy and capture a final human review separately.
 - Accept, reject, defer, or request a new provider proposal with human feedback; retain
   every proposal version and protect against stale or concurrent review actions.
-- Persist audits in local SQLite with append-only audit events.
+- Persist audits locally in SQLite or in owner-scoped PostgreSQL for hosted workspaces,
+  with append-only audit events.
 - Run through a CLI, REST API, or the included accessible review interface.
 - Evaluate predictions with accuracy, per-label precision/recall/F1, Brier score, expected
   calibration error, coverage, and selective risk.
@@ -97,6 +98,8 @@ claim-trellis benchmark score \
 ## API outline
 
 - `GET /healthz` — health and model configuration, never the API key.
+- `GET /api/v1/auth/config` — browser-safe anonymous-auth configuration.
+- `GET /api/v1/audits` — current workspace history, with limit/offset pagination.
 - `POST /api/v1/documents/parse` — parse an uploaded English source.
 - `POST /api/v1/evidence/search` — return ranked candidate passages.
 - `POST /api/v1/audits` — run deterministic and optional Jev checks.
@@ -111,6 +114,28 @@ claim-trellis benchmark score \
 Interactive API documentation is available at `/docs` while the service is running.
 See [UI and review-loop contracts](docs/UI_AND_REVIEW_V1.md) for concurrency, migration,
 and compatibility details.
+
+## Hosted anonymous workspaces
+
+Without `DATABASE_URL`, the default remains a local, single-user SQLite workspace; it is
+not a public multi-user security boundary. Hosted mode requires PostgreSQL and Supabase
+Auth together. Set `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and
+`CLAIM_TRELLIS_AUTH_MODE=supabase` in the server environment, then run
+`claim-trellis db status` and `claim-trellis db migrate` explicitly before deploying.
+The database URL is server-only. The browser creates or restores a Supabase anonymous
+session, and the API verifies its token before returning owner-scoped records.
+
+The console shows recent records; `/history` shows a paginated workspace history. An
+audit URL such as `/?audit=<id>#result` reopens that owned record after refresh. No email
+is requested. Clearing browser data, signing out, or changing devices before account
+linking can make that anonymous workspace inaccessible, although its records remain on
+the server. Account linking is not implemented yet.
+
+Hosted paid-provider calls are disabled by default; only an operator who has added abuse
+protection and a per-user usage guard should opt in with
+`CLAIM_TRELLIS_HOSTED_PROVIDER_ENABLED=true`. Turnstile/CAPTCHA for anonymous signup
+and provider rate/usage limits remain launch blockers for broad promotion. See
+[privacy](docs/PRIVACY.md) and [security](SECURITY.md) before hosting user content.
 
 ## Seed literature benchmark
 
@@ -135,7 +160,9 @@ docs/                   Trust, architecture, evaluation, privacy, and threat mod
 ## Security and privacy
 
 Documents may be confidential or copyrighted. ClaimTrellis defaults to local parsing,
-local persistence, and no telemetry. When the Jev adapter is enabled, the claim,
+local persistence, and no telemetry. Hosted anonymous mode persists the selected evidence,
+audit, feedback and provenance in PostgreSQL, but not raw upload bytes or the full parsed
+source text. When the Jev adapter is enabled, the claim,
 selected passage, and citation context are sent to TypeSafe. Revisions also transmit
 human feedback, previous judgment, and deterministic-check context. Review provider terms and institutional policy
 before processing unpublished or protected material. See [SECURITY.md](SECURITY.md) and
