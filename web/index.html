@@ -36,7 +36,7 @@
           ><a href="https://github.com/Beverly621/claim-trellis">GitHub ↗</a>
         </nav>
       </details>
-      <a class="nav-cta" href="#workspace">Open console <span>↗</span></a>
+      <button class="nav-cta" id="header-action" type="button">Continue as guest <span>↗</span></button>
     </header>
     <main>
       <section class="hero shell" id="product">
@@ -56,11 +56,8 @@
               judgment.
             </p>
             <div class="actions">
-              <a class="button primary magnetic" href="#workspace"
-                >Run an audit <span>↗</span></a
-              ><a class="text-link" href="#method"
-                >Explore the method <span>↓</span></a
-              >
+              <button class="button primary magnetic" id="hero-primary" type="button">Continue as guest <span>↗</span></button>
+              <button class="text-link" id="hero-secondary" type="button" hidden>Sign in <span>↗</span></button>
             </div>
           </div>
           <div
@@ -572,6 +569,47 @@
         <a id="help-link" class="help-doc-link" href="/docs"
           >Read the documentation ↗</a
         >
+      </div>
+    </dialog>
+    <dialog id="account-dialog" class="account-dialog" aria-labelledby="account-title">
+      <div class="account-paper">
+        <button id="account-close" class="help-close" type="button" aria-label="Close account dialog">×</button>
+        <p class="micro">CLAIMTRELLIS / ACCOUNT</p>
+        <h2 id="account-title">Welcome back</h2>
+        <p id="account-copy">Keep your research trail available across browsers and devices.</p>
+        <section id="account-auth">
+          <form id="account-email-form">
+            <label for="account-email">Email</label>
+            <input id="account-email" type="email" autocomplete="email" required />
+            <button class="button primary" type="submit">Send 6-digit code</button>
+          </form>
+          <form id="account-otp-form" hidden>
+            <label for="account-otp">6-digit code</label>
+            <input id="account-otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required />
+            <button class="button primary" type="submit">Verify &amp; continue</button>
+          </form>
+          <p class="small muted">We'll send a 6-digit code. No password.</p>
+          <button id="account-google" class="button secondary" type="button">Continue with Google</button>
+        </section>
+        <section id="account-profile" hidden>
+          <dl class="metadata" id="account-profile-details"></dl>
+          <p><a href="/history">Audit history →</a></p>
+          <button id="account-signout" class="button secondary" type="button">Sign out</button>
+        </section>
+        <section id="account-conflict" hidden>
+          <p>This sign-in method is already in use. Your current guest workspace will not be merged automatically.</p>
+          <button id="account-keep" class="button primary" type="button">Keep guest workspace</button>
+          <button id="account-switch" class="button secondary" type="button">Sign in to existing account</button>
+        </section>
+        <section id="account-switch-warning" hidden>
+          <p>The audits in this guest workspace will remain separate. Switching accounts will not move them into the existing account.</p>
+          <button id="account-cancel-switch" class="button secondary" type="button">Keep guest workspace</button>
+          <button id="account-confirm-switch" class="button primary" type="button">Switch accounts</button>
+        </section>
+        <section id="account-identity-error" hidden>
+          <p>The account link did not preserve your guest identity. Do not clear browser data or create another guest workspace. Contact support before proceeding.</p>
+        </section>
+        <p id="account-message" role="status" aria-live="polite"></p>
       </div>
     </dialog>
     <script src="/assets/design.js" defer></script>

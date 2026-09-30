@@ -42,6 +42,18 @@
 
     try {
       await auth.start();
+      if (auth.currentState().kind === "signed_out") {
+        status.textContent = "Choose Continue as guest or Sign in on the home page first.";
+        list.innerHTML = '<p><a href="/">Open ClaimTrellis →</a></p>';
+        more.hidden = true;
+        return;
+      }
+      if (auth.currentState().kind === "permanent") {
+        const kind = documentRef.querySelector("#history-kind");
+        if (kind) kind.textContent = "YOUR RESEARCH LOG / ACCOUNT WORKSPACE";
+        documentRef.querySelector(".history-intro").textContent =
+          "Your audits are linked to this account and remain separate from other accounts.";
+      }
       more.addEventListener("click", load);
       await load();
     } catch (error) {

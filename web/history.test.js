@@ -35,6 +35,7 @@ test("history loading waits for guest auth and requests only the owned list endp
   const nodes = { "#history-list": list, "#history-status": status, "#history-more": more };
   const auth = {
     start: () => gate,
+    currentState: () => ({ kind: "guest" }),
     request: async (path) => { calls.push(path); return [audit]; },
   };
   const pending = mount({ querySelector: (selector) => nodes[selector] }, auth);
@@ -44,5 +45,21 @@ test("history loading waits for guest auth and requests only the owned list endp
   await pending;
   assert.deepEqual(calls, ["/api/v1/audits?limit=100&offset=0"]);
   assert.match(list.innerHTML, /audit=a%26b/);
+  assert.equal(more.hidden, true);
+});
+
+test("signed-out history does not create a guest or fetch protected audits", async () => {
+  const list = { innerHTML: "" };
+  const status = { textContent: "" };
+  const more = { hidden: false };
+  await mount({ querySelector: (selector) => ({
+    "#history-list": list, "#history-status": status, "#history-more": more,
+  })[selector] }, {
+    start: async () => {},
+    currentState: () => ({ kind: "signed_out" }),
+    request: () => assert.fail("protected history must not be fetched"),
+  });
+  assert.match(status.textContent, /Choose Continue as guest/);
+  assert.match(list.innerHTML, /Open ClaimTrellis/);
   assert.equal(more.hidden, true);
 });

@@ -88,7 +88,9 @@ const post = (path, body) =>
 
 async function loadHealth() {
   try {
-    const health = await api("/healthz");
+    const response = await fetch("/healthz");
+    if (!response.ok) throw new Error("Service unavailable");
+    const health = await response.json();
     const provider = ClaimTrellisAuth.providerAvailability(health);
     $("#health").textContent = provider.available
       ? "● Service online · provider ready"
@@ -580,17 +582,177 @@ $("#help-dialog").addEventListener("click", (event) => {
   if (event.target === event.currentTarget) event.currentTarget.close();
 });
 $("#help-dialog").addEventListener("close", () => helpReturnFocus?.focus());
+let accountReturnFocus = null;
+function renderAuthState() {
+  const auth = ClaimTrellisAuth.currentState();
+  const accountAvailable = ClaimTrellisAuth.accountEnabled();
+  const guest = auth.kind === "guest" || auth.kind === "linking";
+  state.authReady = guest || auth.kind === "permanent";
+  const primary = auth.kind === "permanent" ? "Open workspace"
+    : auth.kind === "error" ? "Account issue" : "Continue as guest";
+  $("#hero-primary").innerHTML = `${primary} <span>↗</span>`;
+  $("#header-action").innerHTML = `${auth.kind === "permanent" ? "Account" : primary} <span>↗</span>`;
+  const secondary = $("#hero-secondary");
+  secondary.hidden = !accountAvailable;
+  secondary.innerHTML = auth.kind === "permanent" ? "Account ↗"
+    : guest ? "Save workspace ↗" : "Sign in ↗";
+  if (auth.kind === "error") secondary.innerHTML = "Review account issue ↗";
+  $("#workspace-identity").hidden = !state.authReady;
+  if (auth.kind === "permanent") {
+    $("#workspace-identity").innerHTML = "<strong>Account workspace</strong> · Your audit history is linked to this account.";
+  } else if (guest) {
+    $("#workspace-identity").innerHTML = "<strong>Guest workspace</strong> · Saved to this browser's anonymous session. Clearing browser data, signing out, or changing devices before linking an account can make it inaccessible.";
+  }
+  setBusy(state.busy);
+}
+function showAccountSection(name) {
+  for (const id of ["auth", "profile", "conflict", "switch-warning", "identity-error"]) {
+    $(`#account-${id}`).hidden = id !== name;
+  }
+}
+function accountError(error) {
+  if (error.message.includes("will not be merged automatically")) {
+    showAccountSection("conflict");
+  }
+  $("#account-message").textContent = error.message;
+}
+async function openAccount(trigger) {
+  if (!ClaimTrellisAuth.accountEnabled()) return;
+  accountReturnFocus = trigger;
+  $("#account-message").textContent = "";
+  $("#account-otp-form").hidden = true;
+  const auth = ClaimTrellisAuth.currentState();
+  if (auth.kind === "error") {
+    $("#account-title").textContent = "Account identity needs review";
+    $("#account-copy").textContent = "No audit ownership was changed by ClaimTrellis.";
+    showAccountSection("identity-error");
+  } else if (auth.kind === "permanent") {
+    $("#account-title").textContent = "Your account";
+    $("#account-copy").textContent = "Your research trail stays with this identity.";
+    showAccountSection("profile");
+    try {
+      const profile = await api("/api/v1/account");
+      $("#account-profile-details").innerHTML = metadata([
+        ["Verified email", profile.email_verified ? profile.user_email : "Not available"],
+        ["Connected methods", profile.connected_methods.join(", ") || "Not available"],
+        ["Account created", profile.created_at ? time(profile.created_at) : "Not available"],
+      ]).replace(/^<dl class="metadata">|<\/dl>$/g, "");
+    } catch (error) { $("#account-message").textContent = error.message; }
+  } else {
+    $("#account-title").textContent = auth.kind === "guest" || auth.kind === "linking"
+      ? "Save your research trail" : "Welcome back";
+    $("#account-copy").textContent = auth.kind === "guest" || auth.kind === "linking"
+      ? "Link an account to keep your audits available across browsers and devices."
+      : "Keep your research trail available across browsers and devices.";
+    showAccountSection("auth");
+    const linking = auth.kind === "linking";
+    $("#account-email-form").hidden = linking;
+    $("#account-otp-form").hidden = !linking;
+    $("#account-google").hidden = linking;
+  }
+  $("#account-dialog").showModal();
+  $("#account-close").focus();
+}
+$("#account-close").addEventListener("click", () => $("#account-dialog").close());
+$("#account-dialog").addEventListener("click", (event) => {
+  if (event.target === event.currentTarget) event.currentTarget.close();
+});
+$("#account-dialog").addEventListener("close", () => accountReturnFocus?.focus());
+$("#account-email-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  $("#account-message").textContent = "";
+  try {
+    const email = $("#account-email").value.trim();
+    const kind = ClaimTrellisAuth.currentState().kind;
+    if (kind === "guest") await ClaimTrellisAuth.linkGuestEmail(email);
+    else await ClaimTrellisAuth.sendEmailOtp(email);
+    $("#account-otp-form").hidden = false;
+    $("#account-message").textContent = "Check your inbox for the 6-digit code.";
+    $("#account-otp").focus();
+  } catch (error) { accountError(error); }
+});
+$("#account-otp-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await ClaimTrellisAuth.verifyEmailOtp($("#account-otp").value.trim());
+    $("#account-dialog").close();
+    await bootstrapWorkspace();
+  } catch (error) { accountError(error); }
+});
+$("#account-google").addEventListener("click", async () => {
+  try {
+    if (ClaimTrellisAuth.currentState().kind === "guest") {
+      await ClaimTrellisAuth.linkGuestGoogle();
+    } else {
+      await ClaimTrellisAuth.signInWithGoogle();
+    }
+  } catch (error) { accountError(error); }
+});
+$("#account-signout").addEventListener("click", async () => {
+  try {
+    await ClaimTrellisAuth.signOut();
+    state.audit = null;
+    $("#result").hidden = true;
+    $("#history").innerHTML = '<p class="empty">Choose a workspace to view records.</p>';
+    $("#account-dialog").close();
+    await bootstrapWorkspace();
+  } catch (error) { accountError(error); }
+});
+$("#account-keep").addEventListener("click", () => {
+  ClaimTrellisAuth.keepGuestWorkspace();
+  $("#account-dialog").close();
+});
+$("#account-switch").addEventListener("click", () => showAccountSection("switch-warning"));
+$("#account-cancel-switch").addEventListener("click", () => showAccountSection("conflict"));
+$("#account-confirm-switch").addEventListener("click", async () => {
+  try {
+    await ClaimTrellisAuth.switchToExistingAccount();
+    state.audit = null;
+    $("#result").hidden = true;
+    $("#account-dialog").close();
+    await bootstrapWorkspace();
+    openAccount($("#hero-secondary"));
+  } catch (error) { accountError(error); }
+});
+async function openWorkspace() {
+  try {
+    await ClaimTrellisAuth.start();
+    if (ClaimTrellisAuth.currentState().kind === "error") {
+      openAccount($("#hero-primary"));
+      return;
+    }
+    if (ClaimTrellisAuth.currentState().kind === "signed_out") {
+      await ClaimTrellisAuth.continueAsGuest();
+      await bootstrapWorkspace();
+    }
+    $("#workspace").scrollIntoView({ behavior: "smooth" });
+  } catch (error) { $("#form-status").textContent = error.message; }
+}
+$("#hero-primary").addEventListener("click", openWorkspace);
+$("#hero-secondary").addEventListener("click", (event) => openAccount(event.currentTarget));
+$("#header-action").addEventListener("click", (event) => {
+  if (ClaimTrellisAuth.currentState().kind === "permanent") openAccount(event.currentTarget);
+  else openWorkspace();
+});
+ClaimTrellisAuth.onAuthStateChange(renderAuthState);
 async function bootstrapWorkspace() {
   state.authReady = false;
   setBusy(false);
   $("#form-status").textContent = "Preparing your workspace…";
   try {
     await ClaimTrellisAuth.start();
-    state.authReady = true;
-    setBusy(false);
-    $("#workspace-identity").hidden = false;
+    renderAuthState();
+    await loadHealth();
+    if (!state.authReady) {
+      $("#form-status").textContent = "Choose Continue as guest or Sign in to open a workspace.";
+      $("#history").innerHTML = '<p class="empty">Choose a workspace to view records.</p>';
+      return;
+    }
     $("#form-status").textContent = "Ready when you are.";
-    await Promise.all([loadHealth(), loadHistory()]);
+    if (ClaimTrellisAuth.currentState().kind === "permanent" && ClaimTrellisAuth.accountEnabled()) {
+      await api("/api/v1/account/sync", { method: "POST" });
+    }
+    await loadHistory();
     const auditId = new URL(window.location.href).searchParams.get("audit");
     if (auditId) {
       try {

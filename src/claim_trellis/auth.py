@@ -21,6 +21,9 @@ class AuthPrincipal:
     user_id: str
     is_anonymous: bool
     email: str | None = None
+    email_verified: bool = False
+    primary_auth_method: str | None = None
+    connected_methods: tuple[str, ...] = ()
 
 
 async def principal(
@@ -47,13 +50,31 @@ async def principal(
         if not isinstance(user, dict):
             raise ValueError("Invalid user response")
         user_id = str(UUID(user["id"]))
+        anonymous = user.get("is_anonymous") is True
         email = user.get("email")
-        if not isinstance(email, str):
-            email = None
+        verified = not anonymous and isinstance(email, str) and bool(user.get("email_confirmed_at"))
+        methods = (
+            tuple(
+                dict.fromkeys(
+                    item["provider"]
+                    for item in user.get("identities", [])
+                    if isinstance(item, dict) and item.get("provider") in ("email", "google")
+                )
+            )
+            if isinstance(user.get("identities"), list)
+            else ()
+        )
+        metadata = user.get("app_metadata")
+        primary = metadata.get("provider") if isinstance(metadata, dict) else None
+        if primary not in ("email", "google"):
+            primary = methods[0] if methods else None
         return AuthPrincipal(
             user_id=user_id,
-            is_anonymous=user.get("is_anonymous") is True,
-            email=email,
+            is_anonymous=anonymous,
+            email=email if verified else None,
+            email_verified=bool(verified),
+            primary_auth_method=primary,
+            connected_methods=methods,
         )
     except (httpx.HTTPError, ValueError, KeyError, TypeError):
         # Never include the token or upstream response body in a public error.

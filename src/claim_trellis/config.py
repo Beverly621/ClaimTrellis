@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     jev_api_key: str | None = Field(default=None, validation_alias="TYPESAFE_API_KEY")
     auto_accept_enabled: bool = False
     hosted_provider_enabled: bool = False
+    account_access_enabled: bool = False
     ip_hash_secret: str | None = None
     relation_confidence_threshold: float = Field(default=0.90, ge=0, le=1)
     alignment_confidence_threshold: float = Field(default=0.85, ge=0, le=1)
