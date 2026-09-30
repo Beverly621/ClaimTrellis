@@ -76,6 +76,7 @@ def test_config_is_public_and_never_leaks_secrets() -> None:
     assert response.json() == {
         "enabled": True,
         "provider": "supabase",
+        "account_access_enabled": False,
         "supabase_url": "https://example.supabase.co",
         "publishable_key": "sb_publishable_test",
     }

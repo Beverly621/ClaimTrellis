@@ -8,7 +8,11 @@ from pathlib import Path
 import psycopg
 from psycopg.conninfo import make_conninfo
 
-MIGRATION_NAMES = ("0001_persistence.sql", "0002_provider_usage.sql")
+MIGRATION_NAMES = (
+    "0001_persistence.sql",
+    "0002_provider_usage.sql",
+    "0003_user_profiles.sql",
+)
 
 
 def _migration_text(name: str) -> str:

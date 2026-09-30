@@ -2640,3 +2640,27 @@ body {
     margin-bottom: 14px;
   }
 }
+.account-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(90vh, 800px);
+  overflow: auto;
+  border: 1px solid var(--line, #384a49);
+  border-radius: 22px;
+  padding: 0;
+  color: var(--text, #e9f1ed);
+  background: var(--surface, #101819);
+  box-shadow: 0 24px 80px #0008;
+}
+.account-dialog::backdrop { background: #050b0ccc; }
+.account-paper { position: relative; padding: clamp(24px, 5vw, 42px); }
+.account-paper h2 { margin: 10px 44px 10px 0; }
+.account-paper form { display: grid; gap: 12px; margin: 22px 0; }
+.account-paper input {
+  width: 100%; min-height: 48px; padding: 12px 14px;
+  border: 1px solid #70827d; border-radius: 14px;
+  color: inherit; background: #0b1113;
+}
+.account-paper button { min-height: 44px; }
+.account-paper section > button + button { margin: 10px 0 0; }
+.account-paper :focus-visible { outline: 3px solid #6be0ce; outline-offset: 3px; }
+#account-message { min-height: 1.5em; }

@@ -36,11 +36,15 @@ Hosted provider usage rows record the owner ID, a secret-keyed HMAC of the canon
 requester IP, audit ID for revisions, provider, operation, status, timestamps, optional
 token counts, and a sanitized error code. They do not store the raw IP, claim, evidence,
 provider key, or upstream error body. The HMAC secret is server-only and is not logged.
-The server verifies a Supabase access token and uses the anonymous Supabase user ID as
-the record owner. No email address is collected or stored by ClaimTrellis in this phase.
+The server verifies a Supabase access token and uses its user ID as the record owner.
+When Account Access v1 is enabled and a permanent user explicitly syncs their account,
+`user_profiles` may store only the server-verified email, verification status,
+authentication method and account timestamps. Product updates opt-in defaults to false.
+Guest users do not need to provide an email.
 The browser's Supabase session storage grants access to that anonymous identity; clearing
 browser data, signing out or switching devices before account linking can make the
-workspace inaccessible. Account linking, retention and deletion tools are not yet
+workspace inaccessible. Account linking preserves the same user ID; histories are never
+automatically merged across different identities. Retention and deletion tools are not yet
 implemented. Database paths, uploaded documents, caches and local reports are ignored
 by Git.
 

@@ -129,7 +129,9 @@ The console shows recent records; `/history` shows a paginated workspace history
 audit URL such as `/?audit=<id>#result` reopens that owned record after refresh. No email
 is requested. Clearing browser data, signing out, or changing devices before account
 linking can make that anonymous workspace inaccessible, although its records remain on
-the server. Account linking is not implemented yet.
+the server. Account Access v1 adds optional Email OTP and Google linking behind
+`CLAIM_TRELLIS_ACCOUNT_ACCESS_ENABLED`; see [operator setup](docs/ACCOUNT_SETUP.md)
+before enabling it.
 
 Hosted paid-provider calls are disabled by default. Migration `0002_provider_usage.sql`
 adds database-atomic reservations: 7 evaluations per user and 10 per public IP in a

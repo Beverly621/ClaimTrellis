@@ -12,6 +12,7 @@ const config = {
   provider: "supabase",
   supabase_url: "https://example.supabase.co",
   publishable_key: "sb_publishable_test",
+  account_access_enabled: true,
 };
 
 test("hosted provider is visibly unavailable while the feature flag is off", () => {
@@ -38,7 +39,7 @@ test("structured hosted 429 receives safe deterministic fallback copy", async ()
   );
 });
 
-test("new guest signs in anonymously before protected history and sends bearer token", async () => {
+test("first visit creates no user; Guest choice creates one before protected history", async () => {
   const paths = [];
   let signIns = 0;
   let session = null;
@@ -47,7 +48,7 @@ test("new guest signs in anonymously before protected history and sends bearer t
       getSession: async () => ({ data: { session }, error: null }),
       signInAnonymously: async () => {
         signIns++;
-        session = { access_token: "guest-token" };
+        session = { access_token: "guest-token", user: { id: "guest-1", is_anonymous: true } };
         return { data: { session }, error: null };
       },
     },
@@ -61,6 +62,12 @@ test("new guest signs in anonymously before protected history and sends bearer t
     },
     () => () => client,
   );
+  await manager.start();
+  assert.equal(manager.currentState().kind, "signed_out");
+  assert.equal(signIns, 0);
+  await assert.rejects(manager.request("/api/v1/audits?limit=10"), /Choose Continue as guest/);
+  await manager.continueAsGuest();
+  await manager.continueAsGuest();
   await manager.request("/api/v1/audits?limit=10");
   assert.equal(signIns, 1);
   assert.deepEqual(paths, ["/api/v1/auth/config", "/api/v1/audits?limit=10"]);
@@ -134,6 +141,186 @@ test("protected requests wait for auth readiness and failure never falls back to
   await Promise.resolve();
   assert.equal(protectedCalls, 0);
   resolveConfig(json(config));
-  await assert.rejects(pending, /Guest sign-in is unavailable/);
+  await assert.rejects(pending, /Account sign-in is unavailable/);
   assert.equal(protectedCalls, 0);
+});
+
+test("direct Email OTP verifies six digits and syncs a permanent profile", async () => {
+  const calls = [];
+  let session = null;
+  const user = { id: "permanent-1", email: "reader@example.com", is_anonymous: false };
+  const client = { auth: {
+    getSession: async () => ({ data: { session } }),
+    signInWithOtp: async (input) => (calls.push(input), { error: null }),
+    verifyOtp: async (input) => {
+      calls.push(input);
+      session = { access_token: "otp-token", user };
+      return { data: { user } };
+    },
+    getUser: async () => ({ data: { user } }),
+  } };
+  const manager = createManager(async (path, options) => {
+    if (path === "/api/v1/auth/config") return json(config);
+    assert.equal(path, "/api/v1/account/sync");
+    assert.equal(options.headers.get("Authorization"), "Bearer otp-token");
+    calls.push("sync");
+    return json({ user_id: user.id });
+  }, () => () => client);
+  await manager.sendEmailOtp(user.email);
+  await assert.rejects(manager.verifyEmailOtp("12345"), /6-digit/);
+  await manager.verifyEmailOtp("123456");
+  assert.equal(manager.currentState().kind, "permanent");
+  assert.deepEqual(calls, [
+    { email: user.email },
+    { email: user.email, token: "123456", type: "email" },
+    "sync",
+  ]);
+});
+
+test("guest Email linking preserves exact user ID and existing audit ownership", async () => {
+  const guestId = "guest-42";
+  let user = { id: guestId, is_anonymous: true };
+  let session = { access_token: "guest-token", user };
+  const calls = [];
+  const client = { auth: {
+    getSession: async () => ({ data: { session } }),
+    getUser: async () => ({ data: { user } }),
+    updateUser: async (input) => (calls.push(input), { data: { user } }),
+    verifyOtp: async (input) => {
+      calls.push(input);
+      user = { id: guestId, email: "reader@example.com", is_anonymous: false };
+      session = { access_token: "linked-token", user };
+      return { data: { user } };
+    },
+  } };
+  const manager = createManager(async (path, options) => {
+    if (path === "/api/v1/auth/config") return json(config);
+    calls.push(path);
+    if (path === "/api/v1/audits") {
+      assert.equal(options.headers.get("Authorization"), "Bearer linked-token");
+      return json([{ audit_id: "owned-audit" }]);
+    }
+    return json({ user_id: guestId });
+  }, () => () => client);
+  await manager.start();
+  await manager.linkGuestEmail("reader@example.com");
+  assert.equal(manager.currentState().kind, "linking");
+  await manager.verifyEmailOtp("654321");
+  assert.equal(manager.currentState().userId, guestId);
+  assert.deepEqual(await manager.request("/api/v1/audits"), [{ audit_id: "owned-audit" }]);
+  assert.deepEqual(calls.slice(0, 3), [
+    { email: "reader@example.com" },
+    { email: "reader@example.com", token: "654321", type: "email_change" },
+    "/api/v1/account/sync",
+  ]);
+});
+
+test("guest identity conflict never syncs or switches ownership", async () => {
+  const guest = { id: "guest-safe", is_anonymous: true };
+  let syncs = 0;
+  const client = { auth: {
+    getSession: async () => ({ data: { session: { access_token: "guest", user: guest } } }),
+    getUser: async () => ({ data: { user: guest } }),
+    updateUser: async () => ({ error: { code: "email_exists" } }),
+  } };
+  const manager = createManager(async (path) => {
+    if (path === "/api/v1/auth/config") return json(config);
+    syncs++;
+    return json({});
+  }, () => () => client);
+  await manager.start();
+  await assert.rejects(manager.linkGuestEmail("taken@example.com"), /will not be merged automatically/);
+  assert.equal(manager.currentState().userId, guest.id);
+  assert.equal(manager.currentState().kind, "guest");
+  assert.equal(syncs, 0);
+});
+
+test("Google direct sign-in and guest linking use different Supabase methods", async () => {
+  let session = null;
+  const calls = [];
+  const client = { auth: {
+    getSession: async () => ({ data: { session } }),
+    signInWithOAuth: async (input) => (calls.push(["direct", input.provider]), { error: null }),
+    signInAnonymously: async () => {
+      session = { access_token: "guest", user: { id: "guest-1", is_anonymous: true } };
+      return { data: { session } };
+    },
+    linkIdentity: async (input) => (calls.push(["link", input.provider]), { error: null }),
+  } };
+  const manager = createManager(async () => json(config), () => () => client);
+  await manager.signInWithGoogle();
+  await manager.continueAsGuest();
+  await manager.linkGuestGoogle();
+  assert.deepEqual(calls, [["direct", "google"], ["link", "google"]]);
+  assert.equal(manager.currentState().userId, "guest-1");
+});
+
+test("Google link return accepts only the original guest user ID", async () => {
+  const oldStorage = globalThis.sessionStorage;
+  const values = new Map();
+  globalThis.sessionStorage = {
+    getItem: (key) => values.get(key) || null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+  try {
+    values.set("claimtrellis-link-user-id", "guest-constant");
+    const user = { id: "guest-constant", is_anonymous: false, email: "reader@example.com" };
+    const client = { auth: {
+      getSession: async () => ({ data: { session: { access_token: "linked", user } } }),
+      getUser: async () => ({ data: { user } }),
+    } };
+    const manager = createManager(async () => json(config), () => () => client);
+    await manager.start();
+    assert.equal(manager.currentState().kind, "permanent");
+    assert.equal(manager.currentState().userId, "guest-constant");
+    assert.equal(values.size, 0);
+
+    values.set("claimtrellis-link-user-id", "guest-constant");
+    const wrong = { ...user, id: "different-account" };
+    const conflict = createManager(async () => json(config), () => () => ({
+      auth: {
+        getSession: async () => ({ data: { session: { access_token: "wrong", user: wrong } } }),
+        getUser: async () => ({ data: { user: wrong } }),
+      },
+    }));
+    await assert.rejects(conflict.start(), /will not be merged automatically/);
+    assert.equal(conflict.currentState().kind, "error");
+    assert.equal(values.get("claimtrellis-link-user-id"), "guest-constant");
+    await assert.rejects(conflict.start(), /will not be merged automatically/);
+  } finally {
+    globalThis.sessionStorage = oldStorage;
+  }
+});
+
+test("permanent sign-out returns to signed-out without making a guest", async () => {
+  let signIns = 0;
+  let session = { access_token: "permanent", user: { id: "reader", is_anonymous: false } };
+  const client = { auth: {
+    getSession: async () => ({ data: { session } }),
+    getUser: async () => ({ data: { user: session?.user } }),
+    signOut: async () => (session = null, { error: null }),
+    signInAnonymously: async () => (signIns++, { error: null }),
+  } };
+  const manager = createManager(async () => json(config), () => () => client);
+  await manager.start();
+  await manager.signOut();
+  assert.equal(manager.currentState().kind, "signed_out");
+  assert.equal(signIns, 0);
+});
+
+test("switching from a guest requires the explicit switch operation and never merges audits", async () => {
+  let session = { access_token: "guest", user: { id: "original-guest", is_anonymous: true } };
+  let signOuts = 0;
+  const client = { auth: {
+    getSession: async () => ({ data: { session } }),
+    signOut: async () => (signOuts++, session = null, { error: null }),
+  } };
+  const manager = createManager(async () => json(config), () => () => client);
+  await manager.start();
+  assert.equal(manager.currentState().userId, "original-guest");
+  assert.equal(signOuts, 0);
+  await manager.switchToExistingAccount();
+  assert.equal(manager.currentState().kind, "signed_out");
+  assert.equal(signOuts, 1);
 });

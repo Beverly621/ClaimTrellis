@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from claim_trellis import __version__
+from claim_trellis.accounts import PostgresAccountProfiles
 from claim_trellis.audit import run_audit
 from claim_trellis.auth import AuthPrincipal, principal
 from claim_trellis.config import Settings, get_settings
@@ -83,6 +84,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.judgment_provider = None
     app.state.usage_guard = (
         PostgresUsageGuard(store.pool) if isinstance(store, PostgresAuditStore) else None
+    )
+    app.state.account_profiles = (
+        PostgresAccountProfiles(store.pool) if isinstance(store, PostgresAuditStore) else None
     )
 
     def database() -> AuditStoreProtocol:
@@ -158,6 +162,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "enabled": resolved_settings.auth_mode == "supabase",
             "provider": resolved_settings.auth_mode,
+            "account_access_enabled": (
+                resolved_settings.account_access_enabled
+                and resolved_settings.auth_mode == "supabase"
+            ),
             "supabase_url": resolved_settings.supabase_url
             if resolved_settings.auth_mode == "supabase"
             else None,
@@ -167,6 +175,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 else None
             ),
         }
+
+    def account_store(identity: AuthPrincipal) -> PostgresAccountProfiles:
+        if not resolved_settings.account_access_enabled or app.state.account_profiles is None:
+            raise HTTPException(status_code=503, detail="Account access is not enabled.")
+        if identity.is_anonymous:
+            raise HTTPException(status_code=403, detail="Link an identity before opening Account.")
+        return cast(PostgresAccountProfiles, app.state.account_profiles)
+
+    def account_view(identity: AuthPrincipal, row: dict[str, object] | None) -> dict[str, object]:
+        return {
+            "user_id": identity.user_id,
+            "user_email": identity.email if identity.email_verified else None,
+            "email_verified": identity.email_verified,
+            "primary_auth_method": identity.primary_auth_method,
+            "connected_methods": list(identity.connected_methods),
+            "created_at": row["created_at"] if row else None,
+            "product_updates_opt_in": row["product_updates_opt_in"] if row else False,
+        }
+
+    @app.get("/api/v1/account")
+    async def get_account(identity: Principal) -> dict[str, object]:
+        row = await account_store(identity).get(identity.user_id)
+        return account_view(identity, row)
+
+    @app.post("/api/v1/account/sync")
+    async def sync_account(identity: Principal) -> dict[str, object]:
+        row = await account_store(identity).sync(identity)
+        return account_view(identity, row)
 
     @app.post("/api/v1/documents/parse", response_model=ParsedDocument)
     async def parse_document(
