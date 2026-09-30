@@ -590,12 +590,12 @@ function renderAuthState() {
   state.authReady = guest || auth.kind === "permanent";
   const primary = auth.kind === "permanent" ? "Open workspace"
     : auth.kind === "error" ? "Account issue" : "Continue as guest";
-  $("#hero-primary").innerHTML = `${primary} <span>↗</span>`;
+  $("#hero-primary").innerHTML = `${auth.kind === "signed_out" ? '<span class="cta-icon" aria-hidden="true">🕶</span> ' : ""}${primary} <span>↗</span>`;
   $("#header-action").innerHTML = `${auth.kind === "permanent" ? "Account" : primary} <span>↗</span>`;
   const secondary = $("#hero-secondary");
   secondary.hidden = !accountAvailable;
   secondary.innerHTML = auth.kind === "permanent" ? "Account ↗"
-    : guest ? "Save workspace ↗" : "Sign in ↗";
+    : guest ? "Save workspace ↗" : '<span class="cta-icon" aria-hidden="true">✉</span> Sign in ↗';
   if (auth.kind === "error") secondary.innerHTML = "Review account issue ↗";
   $("#workspace-identity").hidden = !state.authReady;
   if (auth.kind === "permanent") {

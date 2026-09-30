@@ -3,16 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#080b0c" />
+    <meta name="theme-color" content="#edf3f6" />
     <title>Audit history — ClaimTrellis</title>
     <link rel="icon" type="image/svg+xml" href="/assets/mark.svg" />
+    <script src="/assets/theme.js"></script>
     <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body class="history-page">
     <a class="skip-link" href="#history-main">Skip to history</a>
     <header class="site-header">
       <a class="brand" href="/"><img src="/assets/mark.svg" width="26" height="26" alt="" />ClaimTrellis<span class="alpha">v0.1</span></a>
-      <a class="nav-cta" href="/#workspace">Open console <span>↗</span></a>
+      <div class="header-tools">
+        <div class="theme-switch" role="group" aria-label="Color theme">
+          <button type="button" data-theme-choice="light" aria-label="Light theme" aria-pressed="true">☀</button>
+          <button type="button" data-theme-choice="night" aria-label="Night theme" aria-pressed="false">☾</button>
+        </div>
+        <a class="nav-cta" href="/#workspace">Open console <span>↗</span></a>
+      </div>
     </header>
     <main id="history-main" class="shell history-main">
       <p class="micro accent" id="history-kind">YOUR RESEARCH LOG</p>
