@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 import uvicorn
+from psycopg import Error as PostgresError
 from rich.console import Console
 
 from claim_trellis.audit import run_audit
@@ -20,11 +21,14 @@ from claim_trellis.metrics import (
     validate_benchmark,
     write_json,
 )
+from claim_trellis.migrations import migrate, migration_status
 from claim_trellis.models import AuditRequest, SourceAccessTier, SourceMetadata
 
 app = typer.Typer(no_args_is_help=True, help="Auditable claim-to-source verification.")
 benchmark_app = typer.Typer(no_args_is_help=True, help="Validate and score benchmark files.")
+db_app = typer.Typer(no_args_is_help=True, help="Inspect and apply PostgreSQL migrations.")
 app.add_typer(benchmark_app, name="benchmark")
+app.add_typer(db_app, name="db")
 console = Console()
 
 
@@ -124,14 +128,48 @@ def doctor() -> None:
     settings = get_settings()
     checks = {
         "python": "ok",
-        "data_directory": str(settings.data_dir),
-        "database": str(settings.resolved_database_path),
-        "judgment_provider": settings.judgment_provider,
+        "storage_backend": settings.selected_storage_backend,
+        "database_configured": bool(settings.database_url)
+        if settings.selected_storage_backend == "postgres"
+        else True,
+        "auth_mode": settings.auth_mode,
+        "supabase_auth_configured": bool(
+            settings.supabase_url and settings.supabase_publishable_key
+        ),
         "provider_configured": bool(settings.jev_api_key),
-        "jev_model": settings.jev_model,
-        "auto_accept_enabled": False,
     }
     console.print_json(json.dumps(checks, indent=2))
+
+
+def _database_url() -> str:
+    value = get_settings().database_url
+    if not value:
+        console.print("DATABASE_URL is not configured.")
+        raise typer.Exit(1)
+    return value
+
+
+@db_app.command("status")
+def db_status() -> None:
+    try:
+        result = asyncio.run(migration_status(_database_url()))
+    except (PostgresError, OSError):
+        console.print(
+            "Could not inspect PostgreSQL migrations. Check connectivity and credentials."
+        )
+        raise typer.Exit(1) from None
+    for name, applied in result:
+        console.print(f"{name}: {'applied' if applied else 'pending'}")
+
+
+@db_app.command("migrate")
+def db_migrate() -> None:
+    try:
+        applied = asyncio.run(migrate(_database_url()))
+    except (PostgresError, OSError):
+        console.print("PostgreSQL migration failed. No credentials were printed.")
+        raise typer.Exit(1) from None
+    console.print("Applied: " + (", ".join(applied) if applied else "none; already current"))
 
 
 if __name__ == "__main__":

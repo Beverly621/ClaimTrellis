@@ -3,7 +3,9 @@
 ## Local-first default
 
 Parsing, chunking, retrieval, deterministic checks, SQLite persistence, and reports run on
-the local machine. No document is uploaded merely by opening the interface.
+the local machine by default. No document is uploaded merely by opening the interface.
+In hosted mode, uploaded source bytes are sent to the ClaimTrellis service for in-memory
+parsing; they are not persisted as raw files.
 
 ## Provider transmission
 
@@ -25,11 +27,18 @@ It does not transmit the entire manuscript by design. Users must review TypeSafe
 terms and institutional rules. Zero-data-retention requirements need an appropriate
 provider agreement; the open-source software cannot create that agreement.
 
-## Persistence
+## Persistence and anonymous identity
 
-The local alpha stores audit records in SQLite. Raw uploads are parsed in memory and are
-not retained unless a future deployment explicitly adds storage. Database paths, uploaded
-documents, caches, and local reports are ignored by Git.
+Local mode stores audit records in SQLite. Hosted mode stores owner-scoped audit records,
+selected evidence, feedback, proposal versions, revision runs and audit events in
+PostgreSQL. Raw PDF/DOCX/TXT/MD bytes and the full parsed source text are not persisted.
+The server verifies a Supabase access token and uses the anonymous Supabase user ID as
+the record owner. No email address is collected or stored by ClaimTrellis in this phase.
+The browser's Supabase session storage grants access to that anonymous identity; clearing
+browser data, signing out or switching devices before account linking can make the
+workspace inaccessible. Account linking, retention and deletion tools are not yet
+implemented. Database paths, uploaded documents, caches and local reports are ignored
+by Git.
 
 ## Sensitive data
 

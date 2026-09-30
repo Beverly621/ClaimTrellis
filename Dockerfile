@@ -10,6 +10,7 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY src ./src
 COPY web ./web
+COPY migrations ./migrations
 RUN python -m pip install --no-cache-dir .
 
 RUN useradd --create-home --uid 10001 claimtrellis && mkdir -p /data && chown claimtrellis:claimtrellis /data

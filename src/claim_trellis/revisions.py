@@ -8,24 +8,33 @@ from claim_trellis.policy import propose_disposition
 from claim_trellis.provider import JudgmentProvider, ProviderError
 from claim_trellis.providers import TypeSafeJevProvider
 from claim_trellis.storage import AuditStore
+from claim_trellis.store import LOCAL_USER_ID, AuditStoreProtocol, SQLiteAsyncStore
 
 
 async def revise(
-    store: AuditStore,
+    store: AuditStoreProtocol | AuditStore,
     audit_id: str,
     request: RevisionRequest,
     settings: Settings,
     provider: JudgmentProvider | None = None,
+    *,
+    owner_user_id: str = LOCAL_USER_ID,
 ) -> RevisionRun:
-    run, is_new = store.request_revision(audit_id, request)
+    lifecycle_store = (
+        SQLiteAsyncStore(legacy_store=store) if isinstance(store, AuditStore) else store
+    )
+    run, is_new = await lifecycle_store.request_revision(owner_user_id, audit_id, request)
     if not is_new:
         return run
-    store.start_revision(run)
+    await lifecycle_store.start_revision(owner_user_id, run)
     try:
-        audit = store.get(audit_id)
+        audit = await lifecycle_store.get(owner_user_id, audit_id)
         if audit is None or audit.selected_passage is None:
-            return store.fail_revision(
-                run, "evidence_unavailable", "No evidence passage is available for revision."
+            return await lifecycle_store.fail_revision(
+                owner_user_id,
+                run,
+                "evidence_unavailable",
+                "No evidence passage is available for revision.",
             )
         if (
             provider is None
@@ -40,11 +49,14 @@ async def revise(
                 max_retries=settings.jev_max_retries,
             )
         if provider is None:
-            return store.fail_revision(
-                run, "provider_unavailable", "Configure the judgment provider before retrying."
+            return await lifecycle_store.fail_revision(
+                owner_user_id,
+                run,
+                "provider_unavailable",
+                "Configure the judgment provider before retrying.",
             )
         context = RevisionContext(
-            previous_proposal=store.proposals(audit_id)[-1],
+            previous_proposal=(await lifecycle_store.proposals(owner_user_id, audit_id))[-1],
             deterministic_checks=audit.deterministic_checks,
             source_completeness=audit.source.access_tier,
             human_feedback=request.feedback,
@@ -61,28 +73,43 @@ async def revise(
             relation_confidence_threshold=settings.relation_confidence_threshold,
             alignment_confidence_threshold=settings.alignment_confidence_threshold,
         )
-        return store.finish_revision(run, judgment, policy)
+        return await lifecycle_store.finish_revision(owner_user_id, run, judgment, policy)
     except asyncio.CancelledError:
-        store.fail_revision(
-            run, "interrupted", "Evaluation was interrupted. Retry with the preserved feedback."
+        await asyncio.shield(
+            lifecycle_store.fail_revision(
+                owner_user_id,
+                run,
+                "interrupted",
+                "Evaluation was interrupted. Retry with the preserved feedback.",
+            )
         )
         raise
     except TimeoutError:
-        return store.fail_revision(
-            run, "timeout", "Provider timed out. Your original proposal and feedback are preserved."
+        return await lifecycle_store.fail_revision(
+            owner_user_id,
+            run,
+            "timeout",
+            "Provider timed out. Your original proposal and feedback are preserved.",
         )
     except ProviderError:
-        return store.fail_revision(
+        return await lifecycle_store.fail_revision(
+            owner_user_id,
             run,
             "provider_error",
             "Provider evaluation failed. Retry after checking provider availability.",
         )
     except (ValueError, TypeError, KeyError, AttributeError):
-        return store.fail_revision(
-            run, "invalid_response", "Provider returned an invalid structured judgment."
+        return await lifecycle_store.fail_revision(
+            owner_user_id,
+            run,
+            "invalid_response",
+            "Provider returned an invalid structured judgment.",
         )
     except Exception:
         # Do not leak provider response bodies, keys or source content through errors.
-        return store.fail_revision(
-            run, "evaluation_error", "Evaluation failed. Your feedback is preserved for retry."
+        return await lifecycle_store.fail_revision(
+            owner_user_id,
+            run,
+            "evaluation_error",
+            "Evaluation failed. Your feedback is preserved for retry.",
         )

@@ -207,10 +207,11 @@ class AuditStore:
             except KeyError:
                 return None
 
-    def list_audits(self, *, limit: int = 50) -> list[ClaimAudit]:
+    def list_audits(self, *, limit: int = 50, offset: int = 0) -> list[ClaimAudit]:
         with self._connect() as c:
             ids = c.execute(
-                "SELECT audit_id FROM audits ORDER BY created_at DESC LIMIT ?", (limit,)
+                "SELECT audit_id FROM audits ORDER BY created_at DESC, audit_id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
             ).fetchall()
         return [audit for row in ids if (audit := self.get(row[0])) is not None]
 
