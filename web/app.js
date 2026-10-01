@@ -583,8 +583,27 @@ $("#help-dialog").addEventListener("click", (event) => {
 });
 $("#help-dialog").addEventListener("close", () => helpReturnFocus?.focus());
 let accountReturnFocus = null;
+let lastAuth = null;
+let accountOpenId = 0;
+let accountBusy = false;
 function renderAuthState() {
   const auth = ClaimTrellisAuth.currentState();
+  if (lastAuth && ((lastAuth.userId && lastAuth.userId !== auth.userId)
+      || auth.kind === "error" || (lastAuth.kind === "permanent" && auth.kind !== "permanent"))) {
+    ++state.loadId;
+    ++accountOpenId;
+    state.audit = null;
+    state.history = [];
+    state.revisions = [];
+    state.pendingRequest = null;
+    $("#result").hidden = true;
+    $("#result").innerHTML = "";
+    $("#history").innerHTML = '<p class="empty">Choose a workspace to view records.</p>';
+    $("#account-profile-details").innerHTML = "";
+    $("#account-dialog").close();
+    clearAuditUrl();
+  }
+  lastAuth = auth;
   const accountAvailable = ClaimTrellisAuth.accountEnabled();
   const guest = auth.kind === "guest" || auth.kind === "linking";
   state.authReady = guest || auth.kind === "permanent";
@@ -616,8 +635,22 @@ function accountError(error) {
   }
   $("#account-message").textContent = error.message;
 }
+async function accountAction(action) {
+  if (accountBusy) return;
+  accountBusy = true;
+  const controls = $("#account-dialog").querySelectorAll("section button");
+  controls.forEach((control) => { control.disabled = true; });
+  $("#account-message").textContent = "Working…";
+  try { await action(); }
+  catch (error) { accountError(error); }
+  finally {
+    accountBusy = false;
+    controls.forEach((control) => { control.disabled = false; });
+  }
+}
 async function openAccount(trigger) {
   if (!ClaimTrellisAuth.accountEnabled()) return;
+  const opening = ++accountOpenId;
   accountReturnFocus = trigger;
   $("#account-message").textContent = "";
   $("#account-otp-form").hidden = true;
@@ -630,6 +663,7 @@ async function openAccount(trigger) {
     $("#account-title").textContent = "Your account";
     $("#account-copy").textContent = "Your research trail stays with this identity.";
     showAccountSection("profile");
+    $("#account-profile-details").innerHTML = "";
     try {
       const profile = await api("/api/v1/account");
       $("#account-profile-details").innerHTML = metadata([
@@ -650,6 +684,8 @@ async function openAccount(trigger) {
     $("#account-otp-form").hidden = !linking;
     $("#account-google").hidden = linking;
   }
+  if (opening !== accountOpenId) return;
+  if (auth.notice) accountError(new Error(auth.notice));
   $("#account-dialog").showModal();
   $("#account-close").focus();
 }
@@ -657,11 +693,14 @@ $("#account-close").addEventListener("click", () => $("#account-dialog").close()
 $("#account-dialog").addEventListener("click", (event) => {
   if (event.target === event.currentTarget) event.currentTarget.close();
 });
-$("#account-dialog").addEventListener("close", () => accountReturnFocus?.focus());
+$("#account-dialog").addEventListener("close", () => {
+  ++accountOpenId;
+  accountReturnFocus?.focus();
+});
 $("#account-email-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("#account-message").textContent = "";
-  try {
+  await accountAction(async () => {
     const email = $("#account-email").value.trim();
     const kind = ClaimTrellisAuth.currentState().kind;
     if (kind === "guest") await ClaimTrellisAuth.linkGuestEmail(email);
@@ -669,34 +708,35 @@ $("#account-email-form").addEventListener("submit", async (event) => {
     $("#account-otp-form").hidden = false;
     $("#account-message").textContent = "Check your inbox for the 6-digit code.";
     $("#account-otp").focus();
-  } catch (error) { accountError(error); }
+  });
 });
 $("#account-otp-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  try {
+  await accountAction(async () => {
     await ClaimTrellisAuth.verifyEmailOtp($("#account-otp").value.trim());
     $("#account-dialog").close();
     await bootstrapWorkspace();
-  } catch (error) { accountError(error); }
+  });
 });
 $("#account-google").addEventListener("click", async () => {
-  try {
+  await accountAction(async () => {
     if (ClaimTrellisAuth.currentState().kind === "guest") {
       await ClaimTrellisAuth.linkGuestGoogle();
     } else {
       await ClaimTrellisAuth.signInWithGoogle();
     }
-  } catch (error) { accountError(error); }
+  });
 });
 $("#account-signout").addEventListener("click", async () => {
-  try {
+  await accountAction(async () => {
     await ClaimTrellisAuth.signOut();
     state.audit = null;
     $("#result").hidden = true;
     $("#history").innerHTML = '<p class="empty">Choose a workspace to view records.</p>';
     $("#account-dialog").close();
     await bootstrapWorkspace();
-  } catch (error) { accountError(error); }
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
 });
 $("#account-keep").addEventListener("click", () => {
   ClaimTrellisAuth.keepGuestWorkspace();
@@ -705,14 +745,14 @@ $("#account-keep").addEventListener("click", () => {
 $("#account-switch").addEventListener("click", () => showAccountSection("switch-warning"));
 $("#account-cancel-switch").addEventListener("click", () => showAccountSection("conflict"));
 $("#account-confirm-switch").addEventListener("click", async () => {
-  try {
+  await accountAction(async () => {
     await ClaimTrellisAuth.switchToExistingAccount();
     state.audit = null;
     $("#result").hidden = true;
     $("#account-dialog").close();
     await bootstrapWorkspace();
     openAccount($("#hero-secondary"));
-  } catch (error) { accountError(error); }
+  });
 });
 async function openWorkspace() {
   try {
@@ -743,6 +783,7 @@ async function bootstrapWorkspace() {
     await ClaimTrellisAuth.start();
     renderAuthState();
     await loadHealth();
+    if (ClaimTrellisAuth.currentState().notice) await openAccount($("#hero-secondary"));
     if (!state.authReady) {
       $("#form-status").textContent = "Choose Continue as guest or Sign in to open a workspace.";
       $("#history").innerHTML = '<p class="empty">Choose a workspace to view records.</p>';

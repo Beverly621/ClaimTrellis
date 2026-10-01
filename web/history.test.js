@@ -63,3 +63,27 @@ test("signed-out history does not create a guest or fetch protected audits", asy
   assert.match(list.innerHTML, /Open ClaimTrellis/);
   assert.equal(more.hidden, true);
 });
+
+test("cross-tab sign-out clears history and discards a late page response", async () => {
+  let listener;
+  let complete;
+  let began;
+  const ready = new Promise((resolve) => { began = resolve; });
+  const list = { innerHTML: "", insertAdjacentHTML(_position, html) { this.innerHTML += html; } };
+  const status = {};
+  const more = { addEventListener() {} };
+  const pending = mount({ querySelector: (selector) => ({
+    "#history-list": list, "#history-status": status, "#history-more": more,
+  })[selector] }, {
+    start: async () => {}, currentState: () => ({ kind: "guest", userId: "original" }),
+    onAuthStateChange: (callback) => { listener = callback; },
+    request: () => { began(); return new Promise((resolve) => { complete = resolve; }); },
+  });
+  await ready;
+  listener({ kind: "signed_out", userId: null });
+  complete([audit]);
+  await pending;
+  assert.doesNotMatch(list.innerHTML, /unsafe|study.pdf/);
+  assert.match(status.textContent, /session changed/);
+  assert.equal(more.hidden, true);
+});

@@ -17,12 +17,15 @@
     const status = documentRef.querySelector("#history-status");
     const more = documentRef.querySelector("#history-more");
     let offset = 0;
+    let identityChanged = false;
     const limit = 100;
 
     async function load() {
+      if (identityChanged) return;
       more.disabled = true;
       try {
         const audits = await auth.request(`/api/v1/audits?limit=${limit}&offset=${offset}`);
+        if (identityChanged) return;
         if (!audits.length && offset === 0) {
           list.innerHTML = '<p class="empty">No audits in this workspace yet.</p>';
         } else {
@@ -32,6 +35,7 @@
         more.hidden = audits.length < limit;
         status.textContent = `${offset} audit${offset === 1 ? "" : "s"} in this view`;
       } catch (error) {
+        if (identityChanged) return;
         status.textContent = error.message;
         more.hidden = false;
         more.textContent = "Retry loading →";
@@ -42,12 +46,21 @@
 
     try {
       await auth.start();
-      if (auth.currentState().kind === "signed_out") {
+      if (["signed_out", "error"].includes(auth.currentState().kind)) {
         status.textContent = "Choose Continue as guest or Sign in on the home page first.";
         list.innerHTML = '<p><a href="/">Open ClaimTrellis →</a></p>';
         more.hidden = true;
         return;
       }
+      const owner = auth.currentState().userId;
+      auth.onAuthStateChange?.((next) => {
+        if (next.userId !== owner || ["signed_out", "error"].includes(next.kind)) {
+          identityChanged = true;
+          list.innerHTML = '<p><a href="/">Open ClaimTrellis →</a></p>';
+          status.textContent = "Your account session changed. Reopen your workspace to view its history.";
+          more.hidden = true;
+        }
+      });
       if (auth.currentState().kind === "permanent") {
         const kind = documentRef.querySelector("#history-kind");
         if (kind) kind.textContent = "YOUR RESEARCH LOG / ACCOUNT WORKSPACE";

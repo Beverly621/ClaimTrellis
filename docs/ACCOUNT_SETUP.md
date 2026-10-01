@@ -30,3 +30,42 @@ automatically merged when an email or Google identity belongs to another user.
 
 Never paste database passwords, SMTP keys, OAuth secrets, or user OTPs into issues,
 commits, screenshots, or logs.
+
+## Account session regression acceptance — 2026-10-01
+
+The session fix rechecks the current Supabase user before sign-out, listens for
+session changes, and clears stale account/history views. Repeated sign-out is
+idempotent. Linking retains the guest ID, including when the workspace is reopened
+before verification; an unexpected identity blocks further protected requests.
+Google callback conflicts are recoverable without silently switching accounts.
+Transport/configuration failures are not presented as identity conflicts.
+
+Automated validation: 59 Python tests against local PostgreSQL, 41 Node tests,
+Ruff and strict mypy passed. An isolated Chrome smoke test with simulated Supabase
+responses passed direct OTP/sign-out, guest email linking/cross-tab sign-out, and
+Email/Google conflict plus explicit account switching. These are not real-provider
+acceptance results.
+
+Real Email OTP delivery/login was confirmed by the operator before this fix.
+The operator also confirmed that the change-email OTP reached Gmail's inbox;
+Outlook previously placed an auth email in junk. This does not verify Google OAuth
+or guest ownership preservation. Email logo work is deferred.
+
+Run the following with disposable test identities after loading the fixed assets:
+
+| Flow | Required observation | Real-provider status |
+| --- | --- | --- |
+| Email login → sign-out | Profile disappears; Hero returns; refresh remains signed out; no new guest | Pending retest |
+| Direct Google | A signed-out user returns to the same test origin as a permanent account | Pending |
+| Guest → Email | Record guest user ID and one audit ID, verify OTP, confirm exact same user ID and readable audit after refresh | Pending |
+| Guest → Google | Record guest user ID and one audit ID, authorize linking, confirm exact same user ID and readable audit | Pending |
+| Existing identity conflict | Original guest and audit remain; Keep guest preserves them; only explicit Switch accounts changes identity; histories stay separate | Pending |
+| Cross-tab sign-out | Account details and history disappear in the other tab; refresh does not recreate a guest | Pending |
+
+The operator enters OTPs and completes Google consent. Record only pass/fail and
+whether IDs match, not credentials or identity details. For Google Testing mode,
+use a configured test user. Local testing at `http://127.0.0.1:8768` requires that
+exact origin in Supabase Auth's allowed redirect URLs; otherwise Supabase may send
+the browser to the production Site URL. Do not change the Google client's Supabase
+callback URI to localhost. Remove a temporary local redirect after acceptance.
+Production Account Access remains gated until this matrix passes.
