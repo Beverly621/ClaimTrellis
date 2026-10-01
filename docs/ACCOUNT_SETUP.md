@@ -55,7 +55,7 @@ Run the following with disposable test identities after loading the fixed assets
 
 | Flow | Required observation | Real-provider status |
 | --- | --- | --- |
-| Email login → sign-out | Profile disappears; Hero returns; refresh remains signed out; no new guest | Pending retest |
+| Email login → sign-out | Profile disappears; Hero returns; refresh remains signed out; no new guest | Operator confirmed passed, 2026-10-01 |
 | Direct Google | A signed-out user returns to the same test origin as a permanent account | Pending |
 | Guest → Email | Record guest user ID and one audit ID, verify OTP, confirm exact same user ID and readable audit after refresh | Pending |
 | Guest → Google | Record guest user ID and one audit ID, authorize linking, confirm exact same user ID and readable audit | Pending |
