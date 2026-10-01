@@ -586,6 +586,7 @@ let accountReturnFocus = null;
 let lastAuth = null;
 let accountOpenId = 0;
 let accountBusy = false;
+const accountLabel = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="8" r="3.25"/><path d="M5.5 20v-1.5a6.5 6.5 0 0 1 13 0V20"/></svg><span>Account</span>';
 function renderAuthState() {
   const auth = ClaimTrellisAuth.currentState();
   if (lastAuth && ((lastAuth.userId && lastAuth.userId !== auth.userId)
@@ -610,10 +611,11 @@ function renderAuthState() {
   const primary = auth.kind === "permanent" ? "Open workspace"
     : auth.kind === "error" ? "Account issue" : "Continue as guest";
   $("#hero-primary").innerHTML = `${auth.kind === "signed_out" ? '<span class="cta-icon" aria-hidden="true">🕶</span> ' : ""}${primary} <span>↗</span>`;
-  $("#header-action").innerHTML = `${auth.kind === "permanent" ? "Account" : primary} <span>↗</span>`;
+  $("#header-action").classList.toggle("account-entry", auth.kind === "permanent");
+  $("#header-action").innerHTML = auth.kind === "permanent" ? accountLabel : `${primary} <span>↗</span>`;
   const secondary = $("#hero-secondary");
   secondary.hidden = !accountAvailable;
-  secondary.innerHTML = auth.kind === "permanent" ? "Account ↗"
+  secondary.innerHTML = auth.kind === "permanent" ? accountLabel
     : guest ? "Save workspace ↗" : '<span class="cta-icon" aria-hidden="true">✉</span> Sign in ↗';
   if (auth.kind === "error") secondary.innerHTML = "Review account issue ↗";
   $("#workspace-identity").hidden = !state.authReady;
