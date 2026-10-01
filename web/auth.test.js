@@ -324,3 +324,141 @@ test("switching from a guest requires the explicit switch operation and never me
   assert.equal(manager.currentState().kind, "signed_out");
   assert.equal(signOuts, 1);
 });
+
+function sessionFixture(anonymous = false) {
+  let session = { access_token: "test-token", user: { id: "original", is_anonymous: anonymous } };
+  let listener;
+  let signOuts = 0;
+  const client = { auth: {
+    getSession: async () => ({ data: { session } }),
+    getUser: async () => ({ data: { user: session?.user } }),
+    onAuthStateChange: (callback) => {
+      listener = callback;
+      return { data: { subscription: { unsubscribe() {} } } };
+    },
+    signOut: async () => { signOuts++; session = null; listener?.("SIGNED_OUT", null); return {}; },
+    signInAnonymously: () => assert.fail("must not create another guest"),
+    updateUser: async () => ({}),
+  } };
+  return {
+    client,
+    manager: createManager(async () => json(config), () => () => client),
+    setUser: (user) => { session = user ? { access_token: "test-token", user } : null; },
+    emit: (event) => listener(event, session),
+    signOuts: () => signOuts,
+  };
+}
+
+test("sign-out rechecks a guest cached before the same identity became permanent", async () => {
+  const f = sessionFixture(true);
+  await f.manager.start();
+  f.setUser({ id: "original", is_anonymous: false });
+  await f.manager.signOut();
+  assert.equal(f.signOuts(), 1);
+  assert.equal(f.manager.currentState().kind, "signed_out");
+});
+
+test("duplicate and already-completed sign-out are idempotent", async () => {
+  const f = sessionFixture();
+  await f.manager.start();
+  await Promise.all([f.manager.signOut(), f.manager.signOut()]);
+  await f.manager.signOut();
+  assert.equal(f.signOuts(), 1);
+  assert.equal(f.manager.currentState().kind, "signed_out");
+});
+
+test("sign-out still protects a genuine guest workspace", async () => {
+  const f = sessionFixture(true);
+  await f.manager.start();
+  await assert.rejects(f.manager.signOut(), /Save your guest workspace/);
+  assert.equal(f.signOuts(), 0);
+  assert.equal(f.manager.currentState().userId, "original");
+});
+
+test("Supabase identity updates and cross-tab sign-out reach UI listeners", async () => {
+  const f = sessionFixture(true);
+  await f.manager.start();
+  const changes = [];
+  f.manager.onAuthStateChange((state) => changes.push(state.kind));
+  f.setUser({ id: "original", is_anonymous: false });
+  f.emit("USER_UPDATED");
+  f.emit("TOKEN_REFRESHED");
+  f.setUser(null);
+  f.emit("SIGNED_OUT");
+  assert.deepEqual(changes, ["permanent", "signed_out"]);
+});
+
+test("Continue as guest while linking reuses the guest and preserves OTP verification", async () => {
+  const f = sessionFixture(true);
+  await f.manager.linkGuestEmail("reader@example.com");
+  assert.equal((await f.manager.continueAsGuest()).kind, "linking");
+  assert.equal(f.manager.currentState().userId, "original");
+});
+
+test("an unexpected identity during linking blocks protected requests", async () => {
+  const f = sessionFixture(true);
+  await f.manager.linkGuestEmail("reader@example.com");
+  f.setUser({ id: "other-account", is_anonymous: false });
+  f.emit("SIGNED_IN");
+  assert.equal(f.manager.currentState().kind, "error");
+  await assert.rejects(f.manager.request("/api/v1/audits"), /session changed/);
+  assert.equal(f.manager.keepGuestWorkspace().kind, "error");
+});
+
+test("failed email verification cannot expose a different account's data", async () => {
+  const f = sessionFixture(true);
+  await f.manager.linkGuestEmail("reader@example.com");
+  f.client.auth.verifyOtp = async () => {
+    f.setUser({ id: "other-account", is_anonymous: false });
+    return { data: {} };
+  };
+  await assert.rejects(f.manager.verifyEmailOtp("123456"), /will not be merged/);
+  await assert.rejects(f.manager.request("/api/v1/account"), /session changed/);
+});
+
+test("non-conflict email and Google failures do not claim the identity is taken", async () => {
+  const f = sessionFixture(true);
+  f.client.auth.updateUser = async () => ({ error: { code: "over_email_send_rate_limit" } });
+  f.client.auth.linkIdentity = async () => ({ error: { code: "provider_disabled" } });
+  await assert.rejects(f.manager.linkGuestEmail("reader@example.com"), /Could not send the linking code/);
+  await assert.rejects(f.manager.linkGuestGoogle(), /Google linking could not start/);
+  assert.equal(f.manager.currentState().kind, "guest");
+  assert.equal(f.manager.currentState().userId, "original");
+});
+
+test("Google callback conflict preserves the original guest and exposes recoverable feedback", async (t) => {
+  const oldStorage = globalThis.sessionStorage;
+  const oldLocation = globalThis.location;
+  t.after(() => { globalThis.sessionStorage = oldStorage; globalThis.location = oldLocation; });
+  const values = new Map([["claimtrellis-link-user-id", "original"]]);
+  globalThis.sessionStorage = {
+    getItem: (key) => values.get(key), removeItem: (key) => values.delete(key),
+  };
+  globalThis.location = { hash: "#error=server_error&error_code=identity_already_exists" };
+  const f = sessionFixture(true);
+  await f.manager.start();
+  assert.equal(f.manager.currentState().kind, "guest");
+  assert.equal(f.manager.currentState().userId, "original");
+  assert.match(f.manager.currentState().notice, /will not be merged automatically/);
+  f.manager.keepGuestWorkspace();
+  assert.equal(f.manager.currentState().notice, null);
+  assert.equal(values.size, 0);
+});
+
+test("a response that finishes after sign-out cannot restore prior account data", async () => {
+  const f = sessionFixture();
+  let finish;
+  let started;
+  const began = new Promise((resolve) => { started = resolve; });
+  const manager = createManager(async (path) => {
+    if (path === "/api/v1/auth/config") return json(config);
+    started();
+    return new Promise((resolve) => { finish = resolve; });
+  }, () => () => f.client);
+  await manager.start();
+  const request = manager.request("/api/v1/audits");
+  await began;
+  await manager.signOut();
+  finish(json([{ audit_id: "old-private-audit" }]));
+  await assert.rejects(request, /session changed/);
+});
