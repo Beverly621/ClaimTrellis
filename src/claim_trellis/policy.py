@@ -8,7 +8,7 @@ from claim_trellis.models import (
     SourceAccessTier,
 )
 
-POLICY_VERSION = "fail-closed-v1"
+POLICY_VERSION = "fail-closed-v2"
 
 
 def _aligned(choice: str, allowed: set[str]) -> bool:
@@ -98,8 +98,10 @@ def propose_disposition(
                 policy_version=POLICY_VERSION,
             )
         return Proposal(
-            status=ProposalStatus.UNSUPPORTED,
-            reasons=["The full-text passage was judged not to address the claim."],
+            status=ProposalStatus.REVIEW_REQUIRED,
+            reasons=[
+                "The selected evidence does not address the claim; Top-K retrieval is not exhaustive proof of full-source silence."
+            ],
             policy_version=POLICY_VERSION,
         )
     if relation.choice == "source_unavailable":
@@ -131,26 +133,56 @@ def propose_disposition(
             policy_version=POLICY_VERSION,
         )
 
-    alignments = (
+    blocking = [finding.reason for finding in checks.findings if finding.blocking]
+    if blocking:
+        return Proposal(
+            status=ProposalStatus.REVIEW_REQUIRED, reasons=blocking, policy_version=POLICY_VERSION
+        )
+
+    alignments = [
         (judgment.scope_alignment, {"aligned", "claim_narrower"}, "scope"),
         (judgment.population_alignment, {"aligned", "not_applicable"}, "population"),
         (judgment.causal_fidelity, {"faithful", "not_applicable"}, "causal framing"),
-    )
+    ]
+    for field, name in (
+        ("intervention_or_exposure_alignment", "intervention or exposure"),
+        ("comparator_alignment", "comparator"),
+        ("outcome_alignment", "outcome"),
+        ("timeframe_alignment", "timeframe"),
+        ("direction_alignment", "direction"),
+    ):
+        dimension = getattr(judgment, field)
+        if dimension is None:
+            if judgment.question_set_version.endswith("v3"):
+                return Proposal(
+                    status=ProposalStatus.REVIEW_REQUIRED,
+                    reasons=[f"Required {name} judgment is missing."],
+                    policy_version=POLICY_VERSION,
+                )
+            continue  # Legacy snapshots/providers remain readable.
+        alignments.append((dimension, {"aligned", "not_applicable"}, name))
     reasons: list[str] = []
+    uncertainty = False
     for alignment, allowed, name in alignments:
         if alignment.confidence < alignment_confidence_threshold:
+            uncertainty = True
             reasons.append(f"{name.capitalize()} confidence is below the experimental threshold.")
         elif not _aligned(alignment.choice, allowed):
+            uncertainty = uncertainty or alignment.choice == "unclear"
             reasons.append(f"The {name} judgment is {alignment.choice}.")
     if reasons:
         return Proposal(
-            status=ProposalStatus.PARTIALLY_SUPPORTED,
+            status=ProposalStatus.REVIEW_REQUIRED
+            if uncertainty
+            else ProposalStatus.PARTIALLY_SUPPORTED,
             reasons=reasons,
             policy_version=POLICY_VERSION,
         )
     return Proposal(
         status=ProposalStatus.SUPPORTED,
-        reasons=["Relation, scope, population, causal framing, and deterministic checks align."],
+        reasons=[
+            "All available structured dimensions and deterministic checks align; human confirmation is required."
+        ],
         requires_human_review=True,
         auto_accepted=False,
         policy_version=POLICY_VERSION,

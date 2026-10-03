@@ -9,11 +9,24 @@
 | `citation` | DOI, PMID, URL, bibliographic label, or free-text reference |
 | `source` | Identity, access tier, content hash, and optional publication metadata |
 | `candidates` | Ranked evidence passages with stable locators and scores |
-| `deterministic_checks` | Quote status, numbers, hashes, and warnings |
+| `source_blocks` | Text-free block locator/offset/hash manifest; full blocks exist only in parsing and request processing |
+| `evidence_set` | One to three selected source-ordered passages and canonical hash |
+| `selected_passage` | First source-ordered selected passage, retained for legacy clients |
+| `requested_quote` | Original requested quote for subsequent evidence checks |
+| `deterministic_checks` | Quote status, numbers, hashes, versioned findings and warnings |
 | `judgment_result` | Provider-neutral answers, distributions, confidence, usage, and latency |
 | `proposal` | Policy disposition and explicit reasons |
 | `human_review` | Final decision, notes, reviewer alias, and timestamp |
-| `provenance` | Application, provider, question, policy, retrieval, and model versions |
+| `provenance` | Application, parser, checks, provider, question, policy, retrieval, requested/resolved model versions and evidence-set hash |
+
+`ParsedDocument` retains the existing normalized `text` and adds full `DocumentBlock`
+objects. Audit requests accept these blocks optionally and validate their exact text,
+hashes, order and coverage. They are not stored as a second full-source copy.
+
+Every new `ProposalVersion` includes its evidence set, deterministic checks and provenance
+snapshot. Revision requests optionally specify one to three `selected_passage_ids` from
+the audit's candidates. Old records without snapshots remain readable and are explicitly
+identified as legacy; their historical evidence is not invented.
 
 ## Source access tiers
 
@@ -34,4 +47,7 @@ Human decisions are never inferred from model output.
 ## Audit events
 
 Events are append-only JSON records containing event id, audit id, event type, UTC time,
-and payload. Updating a review creates a new event; it does not rewrite history.
+proposal/version references and payload. Pipeline events record parser manifests,
+retrieval, candidates, selections, checks and structured judgments. An evidence correction
+adds `evidence.selection.changed` with old/new IDs and hashes and the reviewer alias,
+then records the new proposal. Updating a review does not rewrite history.

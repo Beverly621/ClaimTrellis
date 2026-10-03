@@ -6,7 +6,7 @@ import re
 from claim_trellis.citations import sentence_spans
 from claim_trellis.models import EvidencePassage
 
-RETRIEVAL_VERSION = "lexical-bm25-v1"
+RETRIEVAL_VERSION = "lexical-evidence-v2"
 
 
 def _passage(text: str, start: int, end: int, index: int) -> EvidencePassage:

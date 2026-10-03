@@ -44,7 +44,11 @@ class AuditStoreProtocol(Protocol):
     async def start_revision(self, owner_user_id: str, run: RevisionRun) -> None: ...
 
     async def finish_revision(
-        self, owner_user_id: str, run: RevisionRun, judgment: JudgmentResult, policy: Proposal
+        self,
+        owner_user_id: str,
+        run: RevisionRun,
+        judgment: JudgmentResult | None,
+        policy: Proposal,
     ) -> RevisionRun: ...
 
     async def fail_revision(
@@ -111,7 +115,11 @@ class SQLiteAsyncStore:
         await to_thread.run_sync(self.legacy_store.start_revision, run)
 
     async def finish_revision(
-        self, owner_user_id: str, run: RevisionRun, judgment: JudgmentResult, policy: Proposal
+        self,
+        owner_user_id: str,
+        run: RevisionRun,
+        judgment: JudgmentResult | None,
+        policy: Proposal,
     ) -> RevisionRun:
         self._owner(owner_user_id)
         return await to_thread.run_sync(self.legacy_store.finish_revision, run, judgment, policy)

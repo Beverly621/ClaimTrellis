@@ -139,12 +139,20 @@ def test_revision_history_context_and_stale_accept(environment):
     assert [e.event_type for e in events] == [
         "audit.created",
         "source.loaded",
+        "document.parsed",
+        "retrieval.started",
+        "retrieval.completed",
+        "candidate.created",
+        "evidence.selected",
         "checks.completed",
+        "judgment.completed",
         "proposal.created",
         "feedback.recorded",
         "revision.requested",
         "revision.started",
         "proposal.superseded",
+        "checks.completed",
+        "judgment.completed",
         "proposal.created",
         "revision.completed",
     ]
@@ -208,12 +216,14 @@ def test_failure_preserved_and_retry(environment, error, code):
     assert retried["status"] == "revision_completed"
     assert client.get(base).json()["current_proposal_version"] == 2
     assert len(store.revisions(audit["audit_id"])) == 2
-    assert [event.event_type for event in store.events(audit["audit_id"])[-7:]] == [
+    assert [event.event_type for event in store.events(audit["audit_id"])[-9:]] == [
         "revision.failed",
         "feedback.recorded",
         "revision.requested",
         "revision.started",
         "proposal.superseded",
+        "checks.completed",
+        "judgment.completed",
         "proposal.created",
         "revision.completed",
     ]
@@ -398,10 +408,12 @@ def test_v1_to_v3_preserves_snapshots_and_review_history(environment):
         history[2]["proposal_id"],
     ]
     events = client.get(base + "/events").json()
-    assert [event["event_type"] for event in events][-7:] == [
+    assert [event["event_type"] for event in events][-9:] == [
         "revision.requested",
         "revision.started",
         "proposal.superseded",
+        "checks.completed",
+        "judgment.completed",
         "proposal.created",
         "revision.completed",
         "feedback.recorded",

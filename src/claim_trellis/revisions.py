@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 
 from claim_trellis.config import Settings
+from claim_trellis.deterministic import run_deterministic_checks
+from claim_trellis.evidence_sets import evidence_text, revision_evidence
 from claim_trellis.hosted_usage import HostedUsageLimit, MeteredProvider, PostgresUsageGuard
 from claim_trellis.models import RevisionContext, RevisionRequest, RevisionRun
 from claim_trellis.policy import propose_disposition
@@ -32,7 +34,8 @@ async def revise(
     await lifecycle_store.start_revision(owner_user_id, run)
     try:
         audit = await lifecycle_store.get(owner_user_id, audit_id)
-        if audit is None or audit.selected_passage is None:
+        selected = revision_evidence(audit, request) if audit else None
+        if audit is None or selected is None:
             return await lifecycle_store.fail_revision(
                 owner_user_id,
                 run,
@@ -51,6 +54,20 @@ async def revise(
                 timeout_seconds=settings.jev_timeout_seconds,
                 max_retries=settings.jev_max_retries,
             )
+        checks = (
+            run_deterministic_checks(
+                audit.claim,
+                evidence_text(selected),
+                audit.requested_quote,
+                citation=audit.citation,
+                access_tier=audit.source.access_tier,
+            )
+            if request.selected_passage_ids is not None
+            else audit.deterministic_checks
+        )
+        if provider is None and request.selected_passage_ids is not None:
+            policy = propose_disposition(checks, None, source_access_tier=audit.source.access_tier)
+            return await lifecycle_store.finish_revision(owner_user_id, run, None, policy)
         if provider is None:
             return await lifecycle_store.fail_revision(
                 owner_user_id,
@@ -72,17 +89,17 @@ async def revise(
             )
         context = RevisionContext(
             previous_proposal=(await lifecycle_store.proposals(owner_user_id, audit_id))[-1],
-            deterministic_checks=audit.deterministic_checks,
+            deterministic_checks=checks,
             source_completeness=audit.source.access_tier,
             human_feedback=request.feedback,
             revision_number=audit.current_proposal_version + 1,
         )
         async with asyncio.timeout(90):
             judgment = await provider.evaluate(
-                audit.claim, audit.selected_passage.text, audit.citation, revision_context=context
+                audit.claim, evidence_text(selected), audit.citation, revision_context=context
             )
         policy = propose_disposition(
-            audit.deterministic_checks,
+            checks,
             judgment,
             source_access_tier=audit.source.access_tier,
             relation_confidence_threshold=settings.relation_confidence_threshold,

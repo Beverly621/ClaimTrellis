@@ -1,6 +1,6 @@
 # ClaimTrellis v0.1 decisions and release gates
 
-**Current status: ClaimTrellis v0.1 — Feature Frozen / Public Pre-Release**
+**Current status: ClaimTrellis v0.1 — Core Audit Fidelity P0 / Pre-Release**
 
 The v0.1 product direction is frozen. ClaimTrellis is an independent project and its only
 primary brand. TypeSafe Jev is the first structured judgment provider and part of the
@@ -9,7 +9,7 @@ technical lineage, not the product identity.
 ## Feature-freeze policy
 
 The product features, external API, data model, CLI commands, provider architecture, and
-six-label judgment system are frozen after the authorized exception below. The owner has
+six-label judgment system are frozen except for the explicitly authorized P0 work below. The owner has
 confirmed the repository is now public. Do not publish
 to PyPI, create a formal release, or perform promotional activity. New features and
 nonessential dependency upgrades are paused.
@@ -42,6 +42,34 @@ The default branch follows the standard safety policy for a mature repository:
 Keep `main` protected with pull requests, the `test` status check, resolved conversations,
 linear history, and blocked force-pushes and deletions. A
 second-person approval is not required while the project has a single maintainer.
+
+## Authorized P0: Core Audit Fidelity v2
+
+The owner authorized P0 on 2026-10-03. This supersedes the general feature freeze only
+for the existing claim-to-source audit pipeline: structured document blocks, deterministic
+Top-K retrieval and context expansion, one to three selected evidence passages,
+rule-based checks, Jev scientific alignment questions v3, fail-closed policy v2,
+human evidence correction, versioned provenance/events, and the corresponding review UI
+and regression benchmark. Preserve raw normalized text, legacy API fields, immutable
+proposal history, ownership checks, quotas, and concurrency/idempotency guarantees.
+
+The seven P0 decisions are fixed: one atomic claim and one identified source per audit;
+multi-passage evidence sets; human-controlled evidence selection; separate scientific
+alignment questions; no embeddings; no generated explanations; and no automatic final
+acceptance. Explanations are assembled by policy code.
+
+Only P0 is authorized for implementation. P1 manuscript workflows and hybrid retrieval,
+and P2 domain profiles, statistical validation, and cross-claim reasoning remain future
+work. Do not add formats, OCR, scraping, chat, writing tools, paper scores, new providers,
+billing, collaboration, account features, or a broad UI redesign. Repository visibility,
+deployment configuration, brand, license, and release strategy are unchanged. No PyPI,
+formal Release, deployment, promotion, or unvalidated accuracy claim is authorized.
+See [the core capability roadmap](ROADMAP.md).
+
+The owner confirmed on 2026-10-03 that all P0 implementation, tests, documentation and
+follow-up fixes must stay in PR #20 (`codex/core-capability-roadmap`); do not open a second
+P0 PR. Only P0 is in scope. The implementation contract is
+[Core Audit Fidelity v2](P0_CORE_AUDIT_FIDELITY.md).
 
 ## Authorized v0.1 exception: UI and proposal revision loop
 

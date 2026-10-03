@@ -1,0 +1,20 @@
+{
+  "version": "p0-regression-v1",
+  "annotation_status": "synthetic_engineering_regression",
+  "not_a_held_out_accuracy_benchmark": true,
+  "cases": [
+    {"id": "decimal-percent", "claim": "The rate was 12%.", "evidence": "The rate was 12.0%.", "blocking": false},
+    {"id": "fraction-not-percent", "claim": "The rate was 12%.", "evidence": "The rate was 0.12.", "blocking": true},
+    {"id": "unit-required", "claim": "The dose was 20 mg.", "evidence": "The dose was 20 g.", "blocking": true},
+    {"id": "mass-conversion", "claim": "The dose was 20 mg.", "evidence": "The dose was 0.02 g.", "blocking": false},
+    {"id": "missing-unit", "claim": "The dose was 20 mg.", "evidence": "The dose was 20.", "blocking": true},
+    {"id": "scalar-not-range", "claim": "Follow-up was 20 months.", "evidence": "Follow-up was 18–24 months.", "blocking": true},
+    {"id": "same-range", "claim": "Follow-up was 18–24 months.", "evidence": "Follow-up was 18–24 months.", "blocking": false},
+    {"id": "direction-conflict", "claim": "The endpoint increased.", "evidence": "The endpoint decreased.", "blocking": true},
+    {"id": "null-result", "claim": "The endpoint decreased.", "evidence": "There was no significant difference.", "blocking": true},
+    {"id": "quote-wrap", "claim": "The intervention helped.", "evidence": "The inter-\nvention helped.", "quote": "The intervention helped.", "blocking": false},
+    {"id": "quote-outside-selection", "claim": "The intervention helped.", "evidence": "Other source text.", "quote": "The intervention helped.", "blocking": true},
+    {"id": "unicode-quote", "claim": "The outcome was described.", "evidence": "The paper calls it “well tolerated”.", "quote": "\"well tolerated\"", "blocking": false},
+    {"id": "missing-comparator", "claim": "Intervention vs placebo improved outcomes.", "evidence": "Intervention improved outcomes compared with standard care.", "blocking": true}
+  ]
+}

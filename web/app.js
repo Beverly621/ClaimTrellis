@@ -132,6 +132,9 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
   const judgment = audit.judgment_result;
   const checks = audit.deterministic_checks;
   const passage = audit.selected_passage;
+  const selectedIds = draft?.selectedIds ??
+    (revisions.at(-1)?.status === "revision_failed" ? revisions.at(-1).request.selected_passage_ids : null) ??
+    AuditFidelity.selectedIds(audit);
   const previous = versions.length > 1 ? versions[versions.length - 2] : null;
   const lastRun = revisions.at(-1);
   const feedback =
@@ -184,12 +187,13 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
       judgment ? label(judgment.causal_fidelity.choice) : "Provider not run",
     ],
   ];
+  checkRows.push(...AuditFidelity.dimensions(judgment, checks));
   $("#result").hidden = false;
   $("#result").innerHTML = `
-    <div class="result-banner"><div><span class="micro">${final ? "HUMAN-CONFIRMED PROPOSAL" : "MODEL PROPOSAL"} / V${audit.current_proposal_version}</span><h3>${esc(judgment?.relation.choice || "No semantic judgment")}</h3></div><div class="proposal-score"><span>Probability</span><strong>${judgment ? percent(judgment.relation.probabilities[judgment.relation.choice]) : "—"}</strong></div><span class="status-badge status-${esc(audit.review_status)}">${esc(label(audit.review_status))}</span></div>
+    <div class="result-banner"><div><span class="micro">${final ? "HUMAN-CONFIRMED PROPOSAL" : "POLICY PROPOSAL"} / V${audit.current_proposal_version}</span><h3>${esc(label(audit.proposal.status))}</h3></div><div class="proposal-score"><span>Provider relation probability</span><strong>${judgment ? percent(judgment.relation.probabilities[judgment.relation.choice]) : "—"}</strong></div><span class="status-badge status-${esc(audit.review_status)}">${esc(label(audit.review_status))}</span></div>
     <div class="result-grid"><div class="evidence-column">
-      <section class="detail-panel evidence-panel"><div class="panel-heading"><h4>Claim & evidence</h4><button class="info-button" type="button" data-help="evidence" aria-label="About evidence selection">?</button></div><span class="field-label">CLAIM</span><blockquote class="claim-card">${esc(audit.claim)}</blockquote><div class="source-line"><span class="field-label">SOURCE</span><span>${esc(audit.source.title || audit.citation || "Uploaded source")} · ${esc(label(audit.source.access_tier))}</span></div><h4 class="selected-evidence-title">SELECTED EVIDENCE</h4>${EvidenceView.render(audit.claim, passage, audit.source)}</section>
-      ${previous ? `<section class="detail-panel comparison-panel"><span class="field-label">WHAT CHANGED?</span><div class="revision-compare"><div><small>PROPOSAL V${previous.version}</small><p>${esc(previous.relation || "No judgment")}</p><small>${percent(previous.probabilities[previous.relation])}</small></div><span>→</span><div><small>PROPOSAL V${current.version}</small><p class="accent">${esc(current.relation || "No judgment")}</p><small>${percent(current.probabilities[current.relation])}</small></div></div><span class="field-label">HUMAN FEEDBACK</span><blockquote class="guidance">${esc(revisions.find((r) => r.result_proposal_id === current.proposal_id)?.request.feedback || "")}</blockquote><p class="change-line">Changed: <strong>${esc(previous.relation || "none")}</strong> → <strong>${esc(current.relation || "none")}</strong></p></section>` : ""}
+      <section class="detail-panel evidence-panel"><div class="panel-heading"><h4>Claim & evidence</h4><button class="info-button" type="button" data-help="evidence" aria-label="About evidence selection">?</button></div><span class="field-label">CLAIM</span><blockquote class="claim-card">${esc(audit.claim)}</blockquote><div class="source-line"><span class="field-label">SOURCE</span><span>${esc(audit.source.title || audit.citation || "Uploaded source")} · ${esc(label(audit.source.access_tier))}</span></div><h4 class="selected-evidence-title">SELECTED EVIDENCE</h4>${(audit.evidence_set?.passages || [passage]).map((item, i) => EvidenceView.render(audit.claim, item, audit.source, String(i))).join("")}${AuditFidelity.renderCandidates(audit, selectedIds, final || processing)}</section>
+      ${previous ? `<section class="detail-panel comparison-panel"><span class="field-label">WHAT CHANGED?</span><div class="revision-compare"><div><small>PROPOSAL V${previous.version}</small><p>${esc(previous.relation || "No judgment")}</p><small>${percent(previous.probabilities[previous.relation])}</small></div><span>→</span><div><small>PROPOSAL V${current.version}</small><p class="accent">${esc(current.relation || "No judgment")}</p><small>${percent(current.probabilities[current.relation])}</small></div></div><span class="field-label">HUMAN FEEDBACK</span><blockquote class="guidance">${esc(revisions.find((r) => r.result_proposal_id === current.proposal_id)?.request.feedback || "")}</blockquote>${AuditFidelity.renderChanges(previous, current)}</section>` : ""}
       <section class="detail-panel probability-panel"><div class="panel-heading"><h4>Relation probabilities</h4><button class="info-button" type="button" data-help="relations" aria-label="About relation probabilities">?</button></div>${probabilityBars(judgment)}</section>
       <details class="detail-panel disclosure"><summary><span>Deterministic checks</span><span>${warnings.length ? `${warnings.length} attention` : "View checks"}</span></summary><div class="disclosure-body"><ul class="check-list">${checkRows.map(([a, b]) => `<li><span>${esc(a)}</span><span>${esc(b)}</span></li>`).join("")}</ul><button class="inline-help" type="button" data-help="checks">How these checks work ↗</button></div></details>
       <section class="detail-panel timeline-panel"><div class="panel-heading"><h4>Lifecycle</h4><button class="info-button" type="button" data-help="timeline" aria-label="About the audit timeline">?</button></div><div id="audit-timeline"></div><details class="technical-events"><summary>Show full audit events</summary><div id="full-audit-timeline"></div></details></section>
@@ -199,6 +203,10 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
           ["Proposal ID", audit.current_proposal_id],
           ["Source hash", audit.source.content_sha256],
           ["Evidence hash", passage?.sha256],
+          ["Evidence set hash", audit.provenance.evidence_set_hash],
+          ["Parser", audit.provenance.parser_version],
+          ["Check set", audit.provenance.check_set_version],
+          ["Requested model", judgment?.requested_model],
           ["Claim hash", checks.normalized_claim_sha256],
           ["Provider", judgment?.provider],
           ["Model", judgment?.resolved_model],
@@ -222,7 +230,7 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
           ],
         ],
       )}</div></details>
-      <details class="detail-panel disclosure"><summary><span>Proposal history</span><span>${versions.length} version${versions.length === 1 ? "" : "s"}</span></summary><div class="disclosure-body">${versions.map((version) => `<div class="instrument-row"><span>v${version.version} · ${esc(version.relation || "No judgment")}</span><span>${esc(label(version.review_status))}</span></div><p class="locator">${esc(version.proposal_id)} · ${esc(time(version.created_at))}</p>`).join("")}</div></details>
+      <details class="detail-panel disclosure"><summary><span>Proposal history</span><span>${versions.length} version${versions.length === 1 ? "" : "s"}</span></summary><div class="disclosure-body">${versions.map((version) => `<div class="instrument-row"><span>v${version.version} · ${esc(version.relation || "No judgment")}</span><span>${esc(label(version.review_status))}</span></div><p class="locator">${esc(version.proposal_id)} · ${esc(time(version.created_at))}</p><details class="supporting-context"><summary>Evidence used for v${version.version}</summary>${AuditFidelity.renderVersion(version)}</details>`).join("")}</div></details>
     </div><section class="detail-panel review-panel"><div class="panel-heading"><div><span class="field-label">HUMAN DECISION</span><h4>Human review / V${audit.current_proposal_version}</h4></div><button class="guide-trigger compact" type="button" data-help="review-guide">Review guide <span aria-hidden="true">?</span></button></div>
       ${judgment?.judgment_summary ? `<p class="judgment-summary">${esc(judgment.judgment_summary)}</p>` : ""}
       ${warnings.length ? `<div class="error small"><strong>Attention required</strong><ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
@@ -233,6 +241,7 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
         <p class="feedback-contract">Revise and Reject need substantive feedback. The current API also records a short note for Accept and Defer.</p>
         <div class="review-actions"><button class="button accept-action" type="submit" data-action="accept" ${final || processing || !judgment || audit.service_errors.length || audit.review_status === "rejected" ? "disabled" : ""}>Accept proposal <span>✓</span></button><button class="button revise-action" type="submit" data-action="revise" ${final || processing ? "disabled" : ""}>${audit.review_status === "revision_failed" ? "Retry revision" : "Revise with feedback"} <span>↻</span></button><button class="quiet-action reject-action" type="submit" data-action="reject" ${final || processing || audit.review_status === "rejected" ? "disabled" : ""}>Reject</button><button class="quiet-action defer-action" type="submit" data-action="defer" ${final || processing || audit.review_status === "rejected" ? "disabled" : ""}>Defer</button></div>
       </form>
+      <button class="button secondary" type="submit" form="review-form" data-action="change-evidence" ${final || processing || !audit.candidates.length ? "disabled" : ""}>Use selected evidence & create new proposal</button>
       <p id="review-status" role="status" aria-live="polite">${processing ? "Re-evaluating evidence. Awaiting the provider response…" : final ? "This proposal version is accepted. The complete history is preserved." : audit.review_status === "rejected" ? "Proposal rejected. Use feedback to request a new judgment." : audit.review_status === "revision_failed" ? "Revision failed. Original proposal and feedback preserved." : "Awaiting your review."}</p>
       <button id="reload-audit" type="button" class="text-link" style="background:none;border:0;border-bottom:1px solid #485450;margin-top:18px;padding-inline:0">Refresh current record ↻</button>
     </section></div>`;
@@ -241,6 +250,10 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
   $("#reviewer").disabled = state.busy;
   $("#review-notes").disabled = state.busy;
   $("#review-form").addEventListener("submit", handleReview);
+  document.querySelectorAll("[data-evidence-id]").forEach((input) => input.addEventListener("change", () => {
+    const selected = Array.from(document.querySelectorAll("[data-evidence-id]:checked"));
+    if (selected.length > 3) { input.checked = false; showReviewError(new Error("Select at most three passages.")); }
+  }));
   $("#reload-audit").addEventListener("click", () =>
     refreshCurrent(true).catch(showReviewError),
   );
@@ -256,6 +269,7 @@ const eventNames = {
   "revision.failed": "Revision failed",
   "revision.completed": "New proposal ready",
   "proposal.superseded": "Previous proposal superseded",
+  "evidence.selection.changed": "Human evidence selection changed",
   "review.accepted": "Human accepted",
   "review.rejected": "Human rejected",
   "review.deferred": "Decision deferred",
@@ -266,6 +280,7 @@ function renderTimeline(events, full) {
   if (!container) return;
   const lifecycleTypes = new Set([
     "proposal.created",
+    "evidence.selection.changed",
     "feedback.recorded",
     "revision.failed",
     "review.accepted",
@@ -296,6 +311,7 @@ function draft() {
   return {
     feedback: $("#review-notes")?.value || "",
     reviewer: $("#reviewer")?.value || "",
+    selectedIds: Array.from(document.querySelectorAll("[data-evidence-id]:checked"), (item) => item.dataset.evidenceId),
   };
 }
 function showReviewError(error) {
@@ -343,6 +359,7 @@ function setBusy(busy) {
     document.querySelectorAll("[data-action]").forEach((button) => {
       button.disabled = true;
     });
+  if (busy) document.querySelectorAll("[data-evidence-id]").forEach((input) => { input.disabled = true; });
 }
 async function handleReview(event) {
   event.preventDefault();
@@ -356,10 +373,22 @@ async function handleReview(event) {
     return;
   }
   const base = "/api/v1/audits/" + encodeURIComponent(audit.audit_id);
+  const changedEvidence = !AuditFidelity.sameSelection(input.selectedIds, AuditFidelity.selectedIds(audit));
+  if (changedEvidence && !["revise", "change-evidence"].includes(action)) {
+    showReviewError(new Error("Create a new proposal from selected evidence before recording a decision."));
+    return;
+  }
+  if (action === "change-evidence" && !changedEvidence) {
+    showReviewError(new Error("Choose different source evidence first.")); return;
+  }
+  if (changedEvidence) {
+    try { AuditFidelity.validateSelection(input.selectedIds, audit.candidates); }
+    catch (error) { showReviewError(error); return; }
+  }
   setBusy(true);
   let polling = null;
   try {
-    if (action === "revise") {
+    if (["revise", "change-evidence"].includes(action)) {
       // Retain the same request on a network-ambiguous retry.
       const existing = state.pendingRequest;
       const request =
@@ -370,6 +399,7 @@ async function handleReview(event) {
               feedback: input.feedback,
               reviewer: input.reviewer,
               idempotency_key: crypto.randomUUID(),
+              ...(changedEvidence ? { selected_passage_ids: input.selectedIds } : {}),
             };
       state.pendingRequest = { auditId: audit.audit_id, body: request };
       $("#review-status").textContent = "Submitting human guidance…";
@@ -544,13 +574,14 @@ $("#audit-form").addEventListener("submit", async (event) => {
       citation: input.citation,
       quote: input.quote,
       source_text: parsed.text,
+      source_blocks: parsed.blocks,
       source: {
         title: file.name,
         access_tier: input.access,
         content_sha256: parsed.content_sha256,
       },
       use_judgment_provider: input.provider,
-      top_k: 5,
+      top_k: 10,
     });
     state.pendingRequest = null;
     await openAudit(audit.audit_id);

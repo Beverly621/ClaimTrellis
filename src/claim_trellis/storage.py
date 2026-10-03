@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from claim_trellis.audit_fidelity import complete_evidence_revision, initial_events
+from claim_trellis.evidence_sets import revision_evidence
 from claim_trellis.models import (
     AuditEvent,
     ClaimAudit,
@@ -141,6 +143,9 @@ class AuditStore:
             probabilities=judgment.relation.probabilities if judgment else {},
             policy=audit.proposal,
             judgment=judgment,
+            evidence_set=audit.evidence_set,
+            deterministic_checks=audit.deterministic_checks,
+            provenance=audit.provenance,
             created_at=audit.provenance.created_at if legacy else utc_now(),
         )
         c.execute(
@@ -180,11 +185,23 @@ class AuditStore:
             snapshot = self._create_version(c, audit, emit_event=False)
             self._event(c, audit, event_type, audit.model_dump(mode="json"))
             self._event(c, audit, "source.loaded", {"source": audit.source.model_dump(mode="json")})
+            for name, payload in initial_events(audit):
+                self._event(c, audit, name, payload)
             self._event(
                 c,
                 audit,
                 "checks.completed",
                 {"checks": audit.deterministic_checks.model_dump(mode="json")},
+            )
+            self._event(
+                c,
+                audit,
+                "judgment.completed",
+                {
+                    "judgment": audit.judgment_result.model_dump(mode="json")
+                    if audit.judgment_result
+                    else None
+                },
             )
             self._event(
                 c, audit, "proposal.created", {"proposal": snapshot.model_dump(mode="json")}
@@ -347,6 +364,10 @@ class AuditStore:
                 ReviewStatus.RUNNING,
             }:
                 raise LifecycleConflict("This proposal is finalized or has an active revision.")
+            try:
+                revision_evidence(audit, request)
+            except ValueError as exc:
+                raise LifecycleConflict(str(exc)) from exc
             run = RevisionRun(
                 revision_id=str(uuid4()),
                 audit_id=audit_id,
@@ -418,7 +439,7 @@ class AuditStore:
             self._event(c, audit, "revision.started", {"revision_id": run.revision_id})
 
     def finish_revision(
-        self, run: RevisionRun, judgment: JudgmentResult, policy: Proposal
+        self, run: RevisionRun, judgment: JudgmentResult | None, policy: Proposal
     ) -> RevisionRun:
         with self._connect() as c:
             c.execute("BEGIN IMMEDIATE")
@@ -451,14 +472,25 @@ class AuditStore:
             audit.judgment_result = judgment
             audit.proposal = policy
             audit.service_errors = []
-            audit.provenance = audit.provenance.model_copy(
-                update={
-                    "judgment_provider": judgment.provider,
-                    "question_set_version": judgment.question_set_version,
-                    "policy_version": policy.policy_version,
-                }
+            changed = complete_evidence_revision(audit, stored.request, judgment, policy)
+            snapshot = self._create_version(c, audit, parent, emit_event=False)
+            if changed:
+                self._event(c, audit, "evidence.selection.changed", changed)
+            self._event(
+                c,
+                audit,
+                "checks.completed",
+                {"checks": audit.deterministic_checks.model_dump(mode="json")},
             )
-            snapshot = self._create_version(c, audit, parent)
+            self._event(
+                c,
+                audit,
+                "judgment.completed",
+                {"judgment": judgment.model_dump(mode="json") if judgment else None},
+            )
+            self._event(
+                c, audit, "proposal.created", {"proposal": snapshot.model_dump(mode="json")}
+            )
             run.status = RevisionStatus.COMPLETED
             run.result_proposal_id = snapshot.proposal_id
             run.updated_at = utc_now()
@@ -470,8 +502,8 @@ class AuditStore:
                 {
                     "revision_id": run.revision_id,
                     "parent_proposal_id": parent,
-                    "provider": judgment.provider,
-                    "model": judgment.resolved_model,
+                    "provider": judgment.provider if judgment else None,
+                    "model": judgment.resolved_model if judgment else None,
                 },
             )
             return run

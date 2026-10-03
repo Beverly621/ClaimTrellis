@@ -1,33 +1,59 @@
-# Roadmap
+# Core Capability Roadmap
 
-## Phase 0 — trust foundation
+The owner authorized only P0 implementation on 2026-10-03. P1 and P2 are sequencing
+plans, not authorization to expand this change. The product remains an auditable
+claim-to-source verification system with human final judgment.
 
-- Project charter, trust specification, data model, threat model, and privacy boundary.
-- Versioned questions and fail-closed policy.
-- Curated recent-literature seed and benchmark schema.
+## P0 — Core Audit Fidelity v2 (active)
 
-## Phase 1 — local alpha
+Keep TXT, MD, PDF, and DOCX inputs and one atomic claim plus one identified source.
+Preserve raw normalized text and compatible legacy fields.
 
-- Parser, chunker, citation detection, lexical retrieval, deterministic checks.
-- Provider interface and Jev adapter with retry, validation, usage tracking, and pinned model.
-- SQLite audit history, CLI, REST API, and review interface.
-- Unit, integration, and secret-free CI tests.
+- Structured `DocumentBlock` records with stable IDs, types, offsets, hashes, and
+  format-appropriate locators (PDF pages, DOCX paragraphs/sections, Markdown headings,
+  TXT line ranges).
+- Deterministic Top-K lexical retrieval (default ten), scoring features, de-duplication,
+  adjacent context, and bounded sets of one to three source passages. No embeddings.
+- Human evidence correction with provenance, immutable proposal versions, append-only
+  events, optimistic concurrency, idempotency, and recoverable provider failures.
+- Registry-based deterministic quote, numeric, quantity/unit, range, direction,
+  comparator, citation, and completeness checks. Ambiguity requires human review.
+- Jev question set v3: six existing relations, claim type, population, intervention or
+  exposure, comparator, outcome, timeframe, direction, causal fidelity, context
+  sufficiency, and prompt injection. Typed results; code-generated explanations.
+- Fail-closed policy v2, with automatic acceptance disabled and every final decision human.
+- Review UI shows selected source evidence, candidates, structured dimensions, proposal,
+  and evidence correction without a chat interface or a visual redesign.
+- Version parser, retrieval, checks, questions, policy, requested/resolved model, and
+  evidence-set hashes. Prepare offline P0 regression cases and source-grounded literature
+  benchmarks; do not claim measured Jev accuracy without a formal held-out evaluation.
 
-## Phase 2 — measured research preview
+## P1 — Paper Workflow (deferred)
 
-- Domain annotation guide and double-annotated benchmark.
-- Hybrid BM25/embedding retrieval and retrieval ablations.
-- Threshold fitting on validation data; untouched source-level test split.
-- Reproducible model/prompt comparison reports.
+Only after P0 is stable and separately authorized:
 
-## Phase 3 — controlled team pilot
+- Manuscript citation-bearing sentences and conservative clause splitting; humans confirm
+  atomic claims and citation/source mapping.
+- Research-project manuscript/source organization, many ordinary ClaimAudits, review
+  queue, and a Paper Evidence Matrix. No opaque paper-quality score.
+- Experiment with lexical, embedding, and hybrid retrieval; compare Recall@1, Recall@5,
+  and MRR through ablations before adopting a new retrieval mechanism.
 
-- Authentication, authorization, encrypted storage, retention controls, deletion workflow.
-- Worker queue, quotas, budgets, observability, backups, and incident response.
-- Manual source-identity confirmation and expert escalation.
+## P2 — Research-grade Verification (deferred)
 
-## Phase 4 — public release
+Only after P1 and separate authorization:
 
-- Independent validation and published limitations.
-- Signed releases, SBOM, dependency scanning, and security reporting contact.
-- Optional hosted profile only after privacy and legal review.
+- Shared core plus AI/ML and biomedical domain profiles.
+- Explicit statistical quantities (sample size, effects, confidence intervals,
+  denominators, and absolute/relative risk), with validated deterministic rules.
+- Cross-claim and cross-source consistency, limitations, and conflicting evidence.
+- Double annotation and adjudication; calibration on validation data and an untouched,
+  source-separated private held-out set.
+
+## Excluded from current work
+
+No new formats, OCR, web scraping, chatbot, summaries, writing/rewriting, automatic source
+replacement, paper scores, free-text model explanations, automatic acceptance, new
+providers, billing, collaboration, account expansion, or broad homepage/UI redesign.
+No dependency upgrades unless needed for a P0 defect or security fix. Publication,
+visibility changes, production deployment, and performance claims need separate authority.

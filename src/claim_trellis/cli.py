@@ -70,6 +70,7 @@ def audit_command(
     request = AuditRequest(
         claim=claim,
         source_text=document.text,
+        source_blocks=document.blocks,
         citation=citation,
         quote=quote,
         source=SourceMetadata(access_tier=access_tier, content_sha256=document.content_sha256),

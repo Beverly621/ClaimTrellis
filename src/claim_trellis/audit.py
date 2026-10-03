@@ -7,7 +7,9 @@ from claim_trellis import __version__
 from claim_trellis.chunking import RETRIEVAL_VERSION
 from claim_trellis.config import Settings
 from claim_trellis.deterministic import run_deterministic_checks
-from claim_trellis.models import AuditRequest, ClaimAudit, Provenance
+from claim_trellis.document_blocks import PARSER_VERSION, text_blocks
+from claim_trellis.evidence_sets import evidence_text, select_initial
+from claim_trellis.models import AuditRequest, ClaimAudit, DocumentBlockReference, Provenance
 from claim_trellis.policy import POLICY_VERSION, propose_disposition
 from claim_trellis.provider import JudgmentProvider, ProviderError
 from claim_trellis.providers import TypeSafeJevProvider
@@ -20,13 +22,24 @@ async def run_audit(
     *,
     judgment_provider: JudgmentProvider | None = None,
 ) -> ClaimAudit:
-    candidates = retrieve(request.claim, request.source_text, top_k=request.top_k)
-    selected = candidates[0].passage if candidates and candidates[0].score > 0 else None
+    blocks = request.source_blocks or text_blocks(request.source_text)
+    candidates = retrieve(
+        request.claim,
+        request.source_text,
+        top_k=request.top_k,
+        blocks=blocks,
+        citation=request.citation,
+    )
+    evidence_set = select_initial(candidates)
+    selected = evidence_set.passages[0] if evidence_set else None
+    content = evidence_text(evidence_set) if evidence_set else None
     checks = run_deterministic_checks(
         request.claim,
-        selected.text if selected else None,
+        content,
         request.quote,
         quote_source_text=request.source_text,
+        citation=request.citation,
+        access_tier=request.source.access_tier,
     )
     errors: list[str] = []
     judgment_result = None
@@ -47,7 +60,7 @@ async def run_audit(
         if provider is not None:
             try:
                 judgment_result = await provider.evaluate(
-                    request.claim, selected.text, request.citation
+                    request.claim, content or "", request.citation
                 )
             except ProviderError as exc:
                 errors.append(str(exc))
@@ -73,6 +86,12 @@ async def run_audit(
         source=source,
         candidates=candidates,
         selected_passage=selected,
+        evidence_set=evidence_set,
+        source_blocks=[
+            DocumentBlockReference.model_validate(block.model_dump(exclude={"text"}))
+            for block in blocks
+        ],
+        requested_quote=request.quote,
         deterministic_checks=checks,
         judgment_result=judgment_result,
         proposal=proposal,
@@ -84,6 +103,11 @@ async def run_audit(
                 provider.question_set_version if provider is not None else "not-run"
             ),
             policy_version=POLICY_VERSION,
+            parser_version=PARSER_VERSION,
+            check_set_version=checks.check_set_version,
+            evidence_set_hash=evidence_set.sha256 if evidence_set else None,
+            requested_model=judgment_result.requested_model if judgment_result else None,
+            resolved_model=judgment_result.resolved_model if judgment_result else None,
         ),
         service_errors=errors,
     )

@@ -86,7 +86,10 @@
     if (Number.isInteger(passage.page) && passage.page > 0) locator.push(["Page", passage.page]);
     if (Number.isInteger(passage.start_char) && Number.isInteger(passage.end_char)) {
       locator.push(["Characters", `${passage.start_char}–${passage.end_char}`]);
-    } else if (passage.locator) {
+    }
+    if (passage.section) locator.push(["Section", passage.section]);
+    if (Number.isInteger(passage.paragraph)) locator.push(["Paragraph", passage.paragraph]);
+    if (passage.locator) {
       locator.push(["Locator", passage.locator]);
     }
     if (source.title) locator.push(["Source", source.title]);
@@ -101,13 +104,15 @@
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char],
   );
 
-  function render(claim, passage, source) {
+  function render(claim, passage, source, suffix = "") {
     if (!passage) return '<p class="muted">No passage retrieved.</p>';
     const view = build(claim, passage, source);
     const contextCount = view.supporting.length;
+    const primaryId = "primary-passage-title" + (suffix ? "-" + escape(suffix) : "");
+    const locatorId = "source-locator-title" + (suffix ? "-" + escape(suffix) : "");
     return `<div class="evidence-reading">
-      <section class="primary-passage" aria-labelledby="primary-passage-title">
-        <h5 id="primary-passage-title"><span aria-hidden="true">📌</span> Primary passage</h5>
+      <section class="primary-passage" aria-labelledby="${primaryId}">
+        <h5 id="${primaryId}"><span aria-hidden="true">📌</span> Primary passage</h5>
         <p class="primary-text">${escape(view.primary)}</p>
         ${view.location ? `<p class="evidence-location">${escape(view.location)}</p>` : ""}
       </section>
@@ -115,8 +120,8 @@
         <summary><span><span aria-hidden="true">📖</span> Supporting context <small>${contextCount} source block${contextCount === 1 ? "" : "s"} · ${passage.text.length.toLocaleString()} characters</small></span><span class="context-toggle" aria-hidden="true">Show context</span></summary>
         <div class="context-blocks">${view.supporting.map((block) => `<div class="context-block">${block.label ? `<h6>${escape(block.label)}</h6>` : ""}<p>${escape(block.text)}</p></div>`).join("")}</div>
       </details>
-      <section class="source-locator" aria-labelledby="source-locator-title">
-        <h5 id="source-locator-title"><span aria-hidden="true">🧭</span> Source locator</h5>
+      <section class="source-locator" aria-labelledby="${locatorId}">
+        <h5 id="${locatorId}"><span aria-hidden="true">🧭</span> Source locator</h5>
         <dl>${view.locator.map(([key, value]) => `<div><dt>${escape(key)}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>
       </section>
     </div>`;
