@@ -37,7 +37,7 @@ See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
 |---|---|---|
 | P1.1 | Contracts and SQLite/PostgreSQL persistence | Implemented; human acceptance pending |
 | P1.2 | Exact-span extraction and human Confirm/Edit/Reject | Implemented; human acceptance pending |
-| P1.3 | Bibliography, uploaded sources, human mapping identity | Authorized next |
+| P1.3 | Bibliography, uploaded sources, human mapping identity | Implemented; human acceptance pending |
 | P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Deferred |
 | P1.5 | Review Queue / Paper Evidence Matrix | Deferred |
 | P1.6 | Offline dense/hybrid retrieval experiments and benchmarks | Deferred |

@@ -16,7 +16,7 @@ from psycopg.types.json import Jsonb
 
 from claim_trellis.citations import citation_markers
 from claim_trellis.document_blocks import text_blocks, validate_blocks
-from claim_trellis.models import utc_now
+from claim_trellis.models import ParsedDocument, utc_now
 from claim_trellis.paper_models import (
     ID_FIELDS,
     RECORD_MODELS,
@@ -27,11 +27,15 @@ from claim_trellis.paper_models import (
     Contract,
     Manuscript,
     ManuscriptCreate,
+    MappingDecision,
+    MappingSuggestions,
+    PaperSourceMetadata,
     ProjectAuditLink,
     ProjectCreate,
     ReferenceCreate,
     ReferenceEntry,
     ResearchProject,
+    SourceDocument,
     SourceLinkCreate,
     WorkflowEvent,
     WorkflowRecord,
@@ -305,7 +309,13 @@ class PaperWorkflowStore:
     ) -> Contract:
         project = str(record.project_id)
         record_id = str(getattr(record, ID_FIELDS[kind]))
-        fingerprint = digest(record.model_dump(mode="json", exclude={"created_at"}))
+        creation = record.model_dump(mode="json", exclude={"created_at"})
+        # Preserve P1.1 creation keys when reading additive P1.3 defaults.
+        if isinstance(record, ReferenceEntry) and record.parser_version == "manual-reference-v1":
+            creation.pop("parser_version", None)
+        if isinstance(record, ClaimSourceLink) and not record.suggestion_reasons:
+            creation.pop("suggestion_reasons", None)
+        fingerprint = digest(creation)
         rows = await conn.execute(
             "SELECT creation_sha256,record_json FROM paper_workflow_records WHERE record_id=? AND project_id=? AND owner_user_id=? AND kind=?",
             (record_id, project, owner, kind),
@@ -336,14 +346,25 @@ class PaperWorkflowStore:
             kind + ".created",
             {
                 "record_id": record_id,
-                "sha256": str(getattr(record, "sha256", getattr(record, "content_sha256", ""))),
+                "sha256": str(
+                    getattr(
+                        record,
+                        "sha256",
+                        getattr(record, "content_sha256", getattr(record, "document_hash", "")),
+                    )
+                ),
             },
             record_id,
         )
         return record
 
     async def _validate_record(
-        self, conn: _Connection, owner: str, kind: str, record: WorkflowRecord
+        self,
+        conn: _Connection,
+        owner: str,
+        kind: str,
+        record: WorkflowRecord,
+        manuscript_cache: dict[str, Manuscript] | None = None,
     ) -> str | None:
         project = str(record.project_id)
         if isinstance(record, Manuscript):
@@ -351,11 +372,23 @@ class PaperWorkflowStore:
             if hashlib.sha256(record.text.encode()).hexdigest() != record.content_sha256:
                 raise ValueError("Manuscript hash does not match its text.")
             return None
+        if isinstance(record, SourceDocument):
+            validate_blocks(record.text, record.blocks)
+            if (
+                not record.blocks
+                or hashlib.sha256(record.text.encode()).hexdigest() != record.document_hash
+            ):
+                raise ValueError("Source document must preserve parsed text, blocks and hash.")
+            return None
         if isinstance(record, (ClaimCandidate, ReferenceEntry)):
-            manuscript = cast(
-                Manuscript,
-                await self._record(conn, owner, project, record.manuscript_id, "manuscript"),
-            )
+            manuscript = (manuscript_cache or {}).get(record.manuscript_id)
+            if manuscript is None:
+                manuscript = cast(
+                    Manuscript,
+                    await self._record(conn, owner, project, record.manuscript_id, "manuscript"),
+                )
+                if manuscript_cache is not None:
+                    manuscript_cache[record.manuscript_id] = manuscript
             if isinstance(record, ClaimCandidate):
                 start, end = record.exact_span_start, record.exact_span_end
                 sentence = manuscript.text[record.sentence_span.start : record.sentence_span.end]
@@ -390,10 +423,11 @@ class PaperWorkflowStore:
                 raise LifecycleConflict(
                     "Candidate and reference must belong to the same manuscript."
                 )
-            if record.source_document_id is not None:
-                await self._record(
-                    conn, owner, project, record.source_document_id, "source_document"
-                )
+            if record.source_document_id is not None and not await conn.execute(
+                "SELECT record_id FROM paper_workflow_records WHERE record_id=? AND project_id=? AND owner_user_id=? AND kind='source_document'",
+                (record.source_document_id, project, owner),
+            ):
+                raise WorkflowNotFound("Source document not found.")
             return record.candidate_id
         if isinstance(record, ProjectAuditLink):
             await self._record(conn, owner, project, record.claim_source_link_id, "source_link")
@@ -415,10 +449,11 @@ class PaperWorkflowStore:
         async with self.transaction() as conn:
             await self._project(conn, owner, project)
             result = []
+            manuscript_cache: dict[str, Manuscript] = {}
             for record in records:
                 if record.project_id != project or not isinstance(record, RECORD_MODELS[kind]):
                     raise ValueError("Record kind and project must match the target.")
-                parent = await self._validate_record(conn, owner, kind, record)
+                parent = await self._validate_record(conn, owner, kind, record, manuscript_cache)
                 result.append(await self._insert(conn, owner, kind, record, parent))
             return result
 
@@ -569,7 +604,237 @@ class PaperWorkflowStore:
             project_id=project,
             candidate_id=request.candidate_id,
             reference_id=request.reference_id,
+            source_document_id=request.source_document_id,
         )
         return cast(
             ClaimSourceLink, (await self.create_records(owner, project, "source_link", [record]))[0]
         )
+
+    async def create_source(
+        self,
+        owner: str,
+        project: str,
+        key: str,
+        parsed: ParsedDocument,
+        metadata: PaperSourceMetadata,
+    ) -> SourceDocument:
+        record = SourceDocument(
+            source_document_id=stable_id(project, "source:" + key),
+            project_id=project,
+            filename=parsed.filename,
+            media_type=parsed.media_type,
+            text=parsed.text,
+            document_hash=parsed.content_sha256,
+            metadata=metadata,
+            blocks=parsed.blocks,
+            parser_version=parsed.parser_version,
+            parsing_warnings=parsed.warnings,
+        )
+        return cast(
+            SourceDocument,
+            (await self.create_records(owner, project, "source_document", [record]))[0],
+        )
+
+    async def parse_references(
+        self, owner: str, project: str, manuscript_id: str
+    ) -> list[Contract]:
+        from claim_trellis.paper_references import parse_references
+
+        manuscript = cast(Manuscript, await self.get(owner, project, manuscript_id, "manuscript"))
+        return await self.create_records(owner, project, "reference", parse_references(manuscript))
+
+    async def _bounded_records(
+        self, conn: _Connection, owner: str, project: str, kind: str, limit: int
+    ) -> list[Contract]:
+        rows = await conn.execute(
+            "SELECT record_json FROM paper_workflow_records WHERE project_id=? AND owner_user_id=? AND kind=? ORDER BY created_at,record_id LIMIT ?",
+            (project, owner, kind, limit + 1),
+        )
+        if len(rows) > limit:
+            raise ValueError(
+                f"Too many {kind} records for one suggestion operation (limit {limit})."
+            )
+        return [_decode(row, RECORD_MODELS[kind]) for row in rows]
+
+    async def suggest_mappings(
+        self, owner: str, project: str, candidate_id: str
+    ) -> MappingSuggestions:
+        from claim_trellis.paper_references import marker_keys, normalized_doi, normalized_title
+
+        async with self.transaction() as conn:
+            await self._project(conn, owner, project)
+            candidate = cast(
+                ClaimCandidate, await self._record(conn, owner, project, candidate_id, "candidate")
+            )
+            if candidate.status != "confirmed":
+                raise LifecycleConflict(
+                    "Confirm the atomic claim before suggesting source mappings."
+                )
+            references = cast(
+                list[ReferenceEntry],
+                await self._bounded_records(conn, owner, project, "reference", 2000),
+            )
+            # Matching needs only identity metadata, never hundreds of full source texts.
+            projection = (
+                "jsonb_build_object('source_document_id',record_json->'source_document_id','metadata',record_json->'metadata')"
+                if conn.postgres
+                else "json_object('source_document_id',json_extract(record_json,'$.source_document_id'),'metadata',json(json_extract(record_json,'$.metadata')))"
+            )
+            source_rows = await conn.execute(
+                f"SELECT {projection} AS identity_json FROM paper_workflow_records WHERE project_id=? AND owner_user_id=? AND kind='source_document' ORDER BY created_at,record_id LIMIT 501",
+                (project, owner),
+            )
+            if len(source_rows) > 500:
+                raise ValueError(
+                    "More than 500 uploaded sources; use a smaller project for suggestions."
+                )
+            sources: list[tuple[str, PaperSourceMetadata]] = []
+            for row in source_rows:
+                value = row["identity_json"]
+                value = json.loads(value) if isinstance(value, str) else value
+                sources.append(
+                    (
+                        value["source_document_id"],
+                        PaperSourceMetadata.model_validate(value["metadata"]),
+                    )
+                )
+            by_marker: dict[str, list[ReferenceEntry]] = {}
+            for reference in references:
+                if reference.manuscript_id == candidate.manuscript_id:
+                    for key in set().union(*(marker_keys(marker) for marker in reference.markers)):
+                        by_marker.setdefault(key, []).append(reference)
+            keys = set().union(*(marker_keys(marker) for marker in candidate.citation_markers))
+            if len(keys) > 200:
+                raise ValueError("More than 200 expanded citation keys; review smaller claims.")
+            warnings = ["All suggestions require explicit human source-identity confirmation."]
+            if not keys:
+                warnings.append(
+                    "Citation markers could not be resolved safely; create a manual link."
+                )
+            chosen: dict[str, ReferenceEntry] = {}
+            for key in sorted(keys):
+                entries = by_marker.get(key, [])
+                if not entries:
+                    warnings.append(f"Unresolved bibliography marker: {key}.")
+                if len(entries) > 1:
+                    warnings.append(
+                        f"Ambiguous bibliography marker: {key}; no entry was preferred."
+                    )
+                chosen.update({ref.reference_id: ref for ref in entries})
+            proposed: list[ClaimSourceLink] = []
+            for reference in chosen.values():
+                matches: list[tuple[str | None, list[str]]] = []
+                doi, title = normalized_doi(reference.doi), normalized_title(reference.title)
+                for source_identifier, source_metadata in sources:
+                    reasons = []
+                    source_doi = normalized_doi(source_metadata.doi)
+                    if doi and source_doi == doi:
+                        reasons.append("matching_supplied_doi")
+                    elif doi and source_doi and source_doi != doi:
+                        continue  # A conflicting DOI is not overridden by a title match.
+                    elif title and normalized_title(source_metadata.title) == title:
+                        reasons.append("matching_supplied_title")
+                    if reasons:
+                        matches.append((source_identifier, reasons))
+                if not matches:
+                    matches.append((None, ["source_unmapped"]))
+                    warnings.append(
+                        f"No metadata match for reference {reference.reference_id}; select an uploaded source manually."
+                    )
+                if len(matches) > 1:
+                    warnings.append(
+                        f"Several sources match reference {reference.reference_id}; human identity review required."
+                    )
+                for source_id, reasons in matches:
+                    record = ClaimSourceLink(
+                        link_id=stable_id(
+                            candidate_id,
+                            f"mapping:{reference.reference_id}:{source_id or 'unmapped'}",
+                        ),
+                        project_id=project,
+                        candidate_id=candidate_id,
+                        reference_id=reference.reference_id,
+                        source_document_id=source_id,
+                        suggestion_reasons=reasons,
+                    )
+                    parent = await self._validate_record(conn, owner, "source_link", record)
+                    proposed.append(
+                        cast(
+                            ClaimSourceLink,
+                            await self._insert(conn, owner, "source_link", record, parent),
+                        )
+                    )
+                    if len(proposed) > 500:
+                        raise ValueError(
+                            "More than 500 mapping suggestions; resolve ambiguity manually."
+                        )
+            return MappingSuggestions(links=proposed, warnings=warnings)
+
+    async def decide_mapping(
+        self, owner: str, project: str, link_id: str, request: MappingDecision
+    ) -> ClaimSourceLink:
+        async with self.transaction() as conn:
+            await self._project(conn, owner, project)
+            link = cast(
+                ClaimSourceLink, await self._record(conn, owner, project, link_id, "source_link")
+            )
+            event_id = stable_id(link_id, "identity:" + request.idempotency_key)
+            fingerprint = digest(request.model_dump(mode="json"))
+            if await self._decision_replay(conn, owner, project, event_id, fingerprint):
+                return link
+            if link.status != "pending" or link.state_revision != request.expected_state_revision:
+                raise LifecycleConflict("Mapping is finalized or the review state is stale.")
+            candidate = cast(
+                ClaimCandidate,
+                await self._record(conn, owner, project, link.candidate_id, "candidate"),
+            )
+            reference = cast(
+                ReferenceEntry,
+                await self._record(conn, owner, project, link.reference_id, "reference"),
+            )
+            source: SourceDocument | None = None
+            if request.decision == "confirm":
+                if candidate.status != "confirmed":
+                    raise LifecycleConflict("Confirm the atomic claim before source identity.")
+                assert request.source_document_id is not None
+                source = cast(
+                    SourceDocument,
+                    await self._record(
+                        conn, owner, project, request.source_document_id, "source_document"
+                    ),
+                )
+            updated = ClaimSourceLink.model_validate(
+                {
+                    **link.model_dump(),
+                    "status": "confirmed" if source else "rejected",
+                    "source_document_id": source.source_document_id
+                    if source
+                    else link.source_document_id,
+                    "state_revision": link.state_revision + 1,
+                }
+            )
+            await self._validate_record(conn, owner, "source_link", updated)
+            await conn.execute(
+                "UPDATE paper_workflow_records SET record_json=? WHERE record_id=? AND project_id=? AND owner_user_id=? AND kind='source_link'",
+                (updated.model_dump(mode="json"), link_id, project, owner),
+            )
+            await self._event(
+                conn,
+                owner,
+                project,
+                "source_link." + updated.status,
+                {
+                    "request_sha256": fingerprint,
+                    "request": request.model_dump(mode="json"),
+                    "previous_source_document_id": link.source_document_id,
+                    "source_document_id": updated.source_document_id,
+                    "source_document_hash": source.document_hash if source else None,
+                    "reference_sha256": reference.sha256,
+                    "candidate_sha256": candidate.sha256,
+                    "candidate_state_revision": candidate.state_revision,
+                    "state_revision": updated.state_revision,
+                },
+                link_id,
+                event_id,
+            )
+            return updated

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable
+from functools import partial
 from typing import Annotated, TypeVar, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from anyio import to_thread
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 
 from claim_trellis.auth import AuthPrincipal, principal
+from claim_trellis.config import Settings
+from claim_trellis.ingestion import parse_document_bytes
 from claim_trellis.paper_models import (
     CandidateCreate,
     CandidateDecision,
@@ -16,10 +20,14 @@ from claim_trellis.paper_models import (
     Contract,
     Manuscript,
     ManuscriptCreate,
+    MappingDecision,
+    MappingSuggestions,
+    PaperSourceMetadata,
     ProjectCreate,
     ReferenceCreate,
     ReferenceEntry,
     ResearchProject,
+    SourceDocument,
     SourceLinkCreate,
     WorkflowEvent,
 )
@@ -216,3 +224,79 @@ async def source_links(
 @router.get("/{project_id}/source-links/{link_id}", response_model=ClaimSourceLink)
 async def source_link(project_id: str, link_id: str, identity: Principal, store: Store) -> Contract:
     return await checked(store.get(identity.user_id, project_id, link_id, "source_link"))
+
+
+@router.post(
+    "/{project_id}/manuscripts/{manuscript_id}/parse-references",
+    response_model=list[ReferenceEntry],
+)
+async def parse_references(
+    project_id: str, manuscript_id: str, identity: Principal, store: Store
+) -> list[Contract]:
+    return await checked(store.parse_references(identity.user_id, project_id, manuscript_id))
+
+
+@router.post("/{project_id}/sources", response_model=SourceDocument, status_code=201)
+async def upload_source(
+    project_id: str,
+    identity: Principal,
+    store: Store,
+    http_request: Request,
+    document: Annotated[UploadFile, File()],
+    idempotency_key: Annotated[str, Form(min_length=8, max_length=200)],
+    metadata: Annotated[str, Form(max_length=16_000)] = "{}",
+) -> SourceDocument:
+    await checked(store.get_project(identity.user_id, project_id))
+    settings: Settings = http_request.app.state.settings
+    try:
+        source_metadata = PaperSourceMetadata.model_validate_json(metadata)
+        data = await document.read(settings.max_upload_bytes + 1)
+        parsed = await to_thread.run_sync(
+            partial(
+                parse_document_bytes,
+                document.filename or "upload.txt",
+                data,
+                document.content_type or "application/octet-stream",
+                max_bytes=settings.max_upload_bytes,
+                max_chars=settings.max_source_chars,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Invalid source document or metadata.") from exc
+    finally:
+        await document.close()
+    return await checked(
+        store.create_source(identity.user_id, project_id, idempotency_key, parsed, source_metadata)
+    )
+
+
+@router.get("/{project_id}/sources", response_model=list[SourceDocument])
+async def sources(
+    project_id: str, identity: Principal, store: Store, limit: Limit = 50, offset: Offset = 0
+) -> list[Contract]:
+    return await checked(
+        store.list_records(
+            identity.user_id, project_id, "source_document", limit=limit, offset=offset
+        )
+    )
+
+
+@router.get("/{project_id}/sources/{source_id}", response_model=SourceDocument)
+async def source(project_id: str, source_id: str, identity: Principal, store: Store) -> Contract:
+    return await checked(store.get(identity.user_id, project_id, source_id, "source_document"))
+
+
+@router.post(
+    "/{project_id}/candidates/{candidate_id}/suggest-mappings", response_model=MappingSuggestions
+)
+async def suggest_mappings(
+    project_id: str, candidate_id: str, identity: Principal, store: Store
+) -> MappingSuggestions:
+    return await checked(store.suggest_mappings(identity.user_id, project_id, candidate_id))
+
+
+@router.post("/{project_id}/source-links/{link_id}/decisions", response_model=ClaimSourceLink)
+async def decide_mapping(
+    project_id: str, link_id: str, request: MappingDecision, identity: Principal, store: Store
+) -> ClaimSourceLink:
+    return await checked(store.decide_mapping(identity.user_id, project_id, link_id, request))

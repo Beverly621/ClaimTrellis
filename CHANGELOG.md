@@ -4,6 +4,11 @@ All notable changes will be documented here.
 
 ## 0.1.0 - Unreleased
 
+- P1.3: heuristic numeric/author-year bibliography entries with exact spans, independent
+  uploaded source collections (the existing TXT/MD/PDF/DOCX parser), metadata-only mapping
+  suggestions, unresolved/ambiguous mapping warnings, and human source-identity decisions.
+  No automatic audits, Paper Matrix, scraping, live Jev or retrieval experiments.
+
 - P1.2: deterministic citation-bearing sentence / conservative exact-span suggestions
   and human Confirm/Edit/Reject with a three-part rubric, original-span preservation,
   stale-state protection, idempotent decisions and append-only review events.
