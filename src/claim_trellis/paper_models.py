@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from claim_trellis.document_blocks import validate_blocks
-from claim_trellis.models import DocumentBlock, utc_now
+from claim_trellis.models import DocumentBlock, SourceAccessTier, utc_now
 
 TextID = Annotated[str, Field(min_length=1, max_length=200)]
 Marker = Annotated[str, Field(min_length=1, max_length=200)]
@@ -165,12 +165,14 @@ class ReferenceEntry(WorkflowRecord):
     year: int | None = None
     doi: str | None = None
     sha256: str
+    parser_version: str = "manual-reference-v1"
     created_at: datetime = Field(default_factory=utc_now)
 
 
 class SourceLinkCreate(CreateRequest):
     candidate_id: TextID
     reference_id: TextID
+    source_document_id: TextID | None = None
 
 
 class ClaimSourceLink(WorkflowRecord):
@@ -181,7 +183,67 @@ class ClaimSourceLink(WorkflowRecord):
     source_document_id: TextID | None = None
     status: Literal["pending", "confirmed", "rejected"] = "pending"
     state_revision: int = Field(default=0, ge=0)
+    suggestion_reasons: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def confirmed_source(self) -> ClaimSourceLink:
+        if self.status == "confirmed" and self.source_document_id is None:
+            raise ValueError("Confirmed mapping requires an identified uploaded source.")
+        return self
+
+
+class PaperSourceMetadata(Contract):
+    title: str | None = Field(default=None, max_length=2000)
+    authors: list[Annotated[str, Field(min_length=1, max_length=300)]] = Field(
+        default_factory=list, max_length=100
+    )
+    journal: str | None = Field(default=None, max_length=1000)
+    year: int | None = Field(default=None, ge=1900, le=2100)
+    doi: str | None = Field(default=None, max_length=500)
+    access_tier: SourceAccessTier = SourceAccessTier.UNKNOWN
+
+
+class SourceDocument(WorkflowRecord):
+    source_document_id: TextID
+    filename: str
+    media_type: str
+    text: str
+    document_hash: str
+    metadata: PaperSourceMetadata
+    blocks: list[DocumentBlock]
+    parser_version: str
+    parsing_warnings: list[str] = Field(default_factory=list)
+
+
+class MappingDecision(CreateRequest):
+    decision: Literal["confirm", "reject"]
+    expected_state_revision: int = Field(ge=0)
+    reviewer: str = Field(min_length=1, max_length=200)
+    notes: str = Field(min_length=1, max_length=4000)
+    source_document_id: TextID | None = None
+    identity_confirmed: bool = False
+
+    @model_validator(mode="after")
+    def human_identity(self) -> MappingDecision:
+        if self.decision == "confirm" and (
+            not self.identity_confirmed or self.source_document_id is None
+        ):
+            raise ValueError(
+                "Confirm requires a selected source and explicit human identity confirmation."
+            )
+        if self.decision == "reject" and (
+            self.identity_confirmed or self.source_document_id is not None
+        ):
+            raise ValueError("Reject does not confirm source identity.")
+        if not self.reviewer.strip() or not self.notes.strip():
+            raise ValueError("Reviewer and notes cannot be blank.")
+        return self
+
+
+class MappingSuggestions(Contract):
+    links: list[ClaimSourceLink]
+    warnings: list[str]
 
 
 class ProjectAuditLink(WorkflowRecord):
@@ -201,13 +263,21 @@ class WorkflowEvent(Contract):
     created_at: datetime = Field(default_factory=utc_now)
 
 
-Record = Manuscript | ClaimCandidate | ReferenceEntry | ClaimSourceLink | ProjectAuditLink
+Record = (
+    Manuscript
+    | ClaimCandidate
+    | ReferenceEntry
+    | ClaimSourceLink
+    | ProjectAuditLink
+    | SourceDocument
+)
 RECORD_MODELS: dict[str, type[WorkflowRecord]] = {
     "manuscript": Manuscript,
     "candidate": ClaimCandidate,
     "reference": ReferenceEntry,
     "source_link": ClaimSourceLink,
     "audit_link": ProjectAuditLink,
+    "source_document": SourceDocument,
 }
 ID_FIELDS = {
     "manuscript": "manuscript_id",
@@ -215,4 +285,5 @@ ID_FIELDS = {
     "reference": "reference_id",
     "source_link": "link_id",
     "audit_link": "audit_link_id",
+    "source_document": "source_document_id",
 }

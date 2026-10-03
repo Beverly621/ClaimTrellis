@@ -51,11 +51,14 @@ automatically merged across different identities. Retention and deletion tools a
 implemented. Database paths, uploaded documents, caches and local reports are ignored
 by Git.
 
-## Paper Workflow retention (P1.1)
+## Paper Workflow retention (P1.1–P1.3)
 
 The opt-in `/api/v1/projects` backend stores normalized manuscript text, its complete
-grounded blocks, original candidate spans, bibliography excerpts, links and append-only
-workflow events. This is a separate collection, not a change to ClaimAudit's minimum
+grounded blocks, original candidate spans, human-confirmed claim text, bibliography
+excerpts, links and append-only workflow events (including reviewer aliases, notes and
+rubric attestations). P1.3 also retains the full normalized text and blocks of uploaded
+SourceDocuments, supplied metadata, parser version and text hash. Raw uploaded file bytes
+are not stored as application records. This is a separate collection, not a change to ClaimAudit's minimum
 snapshot retention above. Text persists to support repeatable exact-span extraction.
 Owners are derived from verified identity, never from request JSON; every child lookup
 checks both owner and project. PostgreSQL tables have RLS enabled and no grants for
@@ -64,6 +67,8 @@ checks both owner and project. PostgreSQL tables have RLS enabled and no grants 
 No Paper Workflow request in P1.1–P1.3 sends data to Jev or creates an audit. No retention
 expiry, deletion API or browser workflow UI is implemented by these stages. Treat project
 text and events as sensitive retained records and do not upload confidential material.
+Supplied source metadata and parsed bibliography metadata are unverified descriptions,
+not proof of paper identity. Human identity decisions and text hashes are stored separately.
 
 ## Sensitive data
 

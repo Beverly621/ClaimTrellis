@@ -27,6 +27,10 @@ PostgreSQL requires the additive `0004_paper_workflow.sql` migration using the e
 migration CLI. Do not apply it to production until an operator approves the PR and
 backup/migration plan. SQLite creates only additive tables in its existing audit DB.
 Project text is persisted: read [privacy](PRIVACY.md) before uploading material.
+Use a local/disposable database for acceptance. An existing Vercel integration may
+create a PR preview automatically; it can still point at the hosted database. Do not
+apply a production migration merely to make a preview's new endpoints work. This work
+does not change deployment configuration or apply production migrations.
 
 ### Manual P1.1 acceptance
 
@@ -84,11 +88,71 @@ Automated checks include Unicode offsets, duplicate sentences, citation styles, 
 lists/quotes/parentheses, rubric failures, edit/reject/replay, owner isolation and racing
 human decisions on both databases. The browser review UI is intentionally not expanded.
 
-## P1.3 — Bibliography/source identity mapping (next)
+## P1.3 — Bibliography/source identity mapping
 
 Only numeric/author-year references, uploaded TXT/MD/PDF/DOCX source collections,
 machine suggestions and explicit human identity confirmation. No scraping or GROBID
 runtime dependency. Several sources per claim remain separate links, not one verdict.
+
+POST `/{project}/manuscripts/{manuscript}/parse-references` recognizes an explicit
+References/Bibliography heading and numeric entry starts (`[12]`, `12.`, `12)`) or
+conservative surname/initial/year starts. Continuation lines retain their exact offsets;
+a recognized Markdown/Appendix heading ends the bibliography. References retain raw
+text, spans, hash, parser version and tentative title/first-author/year/DOI metadata.
+Metadata is incomplete and heuristic: layouts that do not match require manual
+`ReferenceCreate` spans, metadata and markers. No external paper metadata is fetched.
+Parser output is not proof of identity or a comprehensive bibliography extraction result.
+
+POST `/{project}/sources` accepts multipart `document`, `idempotency_key` and optional
+`metadata` (JSON string: title, authors, journal, year, doi, access_tier). It reuses the
+existing byte/character limits, signatures and TXT/MD/PDF/DOCX parsers; parsing runs in
+a threadpool after the owner/project check. Normalized text, grounded blocks, parser
+version, warnings and document hash persist, not the original file. Metadata cannot
+set owner IDs or content hashes. Replaying the same upload/metadata returns one source;
+changed content under the same key conflicts. List/get use `/{project}/sources`.
+
+POST `/{project}/candidates/{candidate}/suggest-mappings` requires a human-confirmed
+candidate. Numeric keys expand bounded lists/ranges; author-year keys use first surname,
+year and suffix. Duplicate keys remain ambiguous. DOI matches or normalized title
+matches (at least three words) propose pending links; conflicting known DOIs never fall
+back to title. Supplied metadata is untrusted: a match is only a suggestion. No match
+produces a pending unmapped link; unknown citation keys produce warnings rather than
+guessed identity. All matching reference/source possibilities remain available for review.
+Suggestions are bounded to 200 expanded keys, 2,000 project references, 500 uploaded
+sources and 500 links per operation. Exceeding a bound fails atomically, not by truncation.
+Source matching reads only identity metadata, not the entire source collection's text.
+
+Manual `SourceLinkCreate` may specify a candidate, a same-manuscript reference and an
+optional uploaded source ID. POST `/{project}/source-links/{link}/decisions` requires
+confirm/reject, expected revision, idempotency key, reviewer and notes. Confirm additionally
+requires a selected same-project source and `identity_confirmed: true`. A reviewer may
+correct the machine's source selection; events preserve previous/selected source IDs,
+source hash, reference hash and candidate hash/revision. Only pending links are decided;
+stale/repeated conflicting requests return 409. Replays do not undo decisions.
+
+### Manual P1.3 acceptance
+
+1. Create a manuscript containing an in-text `[12]` and an explicit reference entry:
+   `[12] Smith, J. (2024). Example paper title. Example Journal. doi:10.1234/demo.`
+   This is synthetic test data, not a real-paper benchmark.
+2. Extract and human-confirm its claim; parse references twice. Check stable IDs, exact
+   raw reference text/span/hash and no duplicated events. Repeat with an author-year
+   in-text citation and an unnumbered author-year entry.
+3. Upload a source you are authorized to use, supplying its actual title/year/DOI metadata.
+   Check text/hash/blocks/format locators and identical upload replay.
+4. Request suggestions. Every new link is pending. Review the reference and source title
+   page yourself; Confirm with the selected source ID and `identity_confirmed: true`, or
+   Reject. Supplied DOI alone is not evidence that the uploaded content is that paper.
+5. Try a source ID from a different project or owner: verify 404 and no decision event.
+   Try confirming without the identity attestation: verify 422.
+6. Test two references/two sources for one claim and ambiguous/missing mappings. Confirm
+   links independently. Verify project events and that no ClaimAudit was started.
+
+Automated tests cover both database adapters, numeric/author-year styles, bounded marker
+expansion, multiline bibliography spans, metadata conflicts, ambiguity, missing sources,
+manual mapping, source formats, human gates, stale/concurrent decisions, replay, P1.1
+serialized-default compatibility and API prototype flows. These are software contract
+tests with synthetic data, not real-literature validation or a held-out accuracy benchmark.
 
 ## Deferred
 
