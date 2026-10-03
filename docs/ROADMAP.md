@@ -1,10 +1,10 @@
 # Core Capability Roadmap
 
-The owner authorized only P0 implementation on 2026-10-03. P1 and P2 are sequencing
-plans, not authorization to expand this change. The product remains an auditable
+The owner accepted P0 and authorized only P1.1–P1.3 on 2026-10-03. Later P1 stages
+and P2 require separate authorization. The product remains an auditable
 claim-to-source verification system with human final judgment.
 
-## P0 — Core Audit Fidelity v2 (active)
+## P0 — Core Audit Fidelity v2 (accepted 2026-10-03)
 
 Keep TXT, MD, PDF, and DOCX inputs and one atomic claim plus one identified source.
 Preserve raw normalized text and compatible legacy fields.
@@ -28,9 +28,22 @@ Preserve raw normalized text and compatible legacy fields.
   evidence-set hashes. Prepare offline P0 regression cases and source-grounded literature
   benchmarks; do not claim measured Jev accuracy without a formal held-out evaluation.
 
-## P1 — Paper Workflow (deferred)
+## P1 — Paper Workflow (P1.1–P1.3 authorized; human acceptance pending)
 
-Only after P0 is stable and separately authorized:
+The three backend stages use separate, stacked PRs; none is authorized for automatic merge.
+See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
+
+| Stage | Boundary | Status |
+|---|---|---|
+| P1.1 | Contracts and SQLite/PostgreSQL persistence | Implemented; human acceptance pending |
+| P1.2 | Exact-span extraction and human Confirm/Edit/Reject | Authorized next |
+| P1.3 | Bibliography, uploaded sources, human mapping identity | Authorized next |
+| P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Deferred |
+| P1.5 | Review Queue / Paper Evidence Matrix | Deferred |
+| P1.6 | Offline dense/hybrid retrieval experiments and benchmarks | Deferred |
+| P1.7 | Full workflow E2E, live Jev smoke and final acceptance | Deferred |
+
+The full P1 sequence, not the current implementation, includes:
 
 - Manuscript citation-bearing sentences and conservative clause splitting; humans confirm
   atomic claims and citation/source mapping.
@@ -55,5 +68,5 @@ Only after P1 and separate authorization:
 No new formats, OCR, web scraping, chatbot, summaries, writing/rewriting, automatic source
 replacement, paper scores, free-text model explanations, automatic acceptance, new
 providers, billing, collaboration, account expansion, or broad homepage/UI redesign.
-No dependency upgrades unless needed for a P0 defect or security fix. Publication,
+No dependency upgrades unless needed for a defect or security fix. Publication,
 visibility changes, production deployment, and performance claims need separate authority.

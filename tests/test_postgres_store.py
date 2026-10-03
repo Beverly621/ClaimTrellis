@@ -12,7 +12,7 @@ from test_revisions import RevisionProvider
 
 from claim_trellis.audit import run_audit
 from claim_trellis.config import Settings
-from claim_trellis.migrations import migrate, migration_status
+from claim_trellis.migrations import MIGRATION_NAMES, migrate, migration_status
 from claim_trellis.models import AuditRequest, HumanReviewRequest, RevisionRequest, RevisionStatus
 from claim_trellis.postgres_store import PostgresAuditStore
 from claim_trellis.provider import ProviderError
@@ -34,17 +34,11 @@ def pg_url() -> str:
         for role in ("anon", "authenticated"):
             if conn.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (role,)).fetchone() is None:
                 conn.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(role)))
-    assert asyncio.run(migrate(url, sslmode="disable")) in (
-        ["0001_persistence.sql", "0002_provider_usage.sql", "0003_user_profiles.sql"],
-        ["0002_provider_usage.sql", "0003_user_profiles.sql"],
-        ["0003_user_profiles.sql"],
-        [],
-    )
+    applied = asyncio.run(migrate(url, sslmode="disable"))
+    assert applied == list(MIGRATION_NAMES)[len(MIGRATION_NAMES) - len(applied) :]
     assert asyncio.run(migrate(url, sslmode="disable")) == []
     assert asyncio.run(migration_status(url, sslmode="disable")) == [
-        ("0001_persistence.sql", True),
-        ("0002_provider_usage.sql", True),
-        ("0003_user_profiles.sql", True),
+        (name, True) for name in MIGRATION_NAMES
     ]
     return url
 
@@ -284,12 +278,21 @@ async def test_sql_privileges_and_rls_defense_in_depth(pg_url) -> None:
         async with store.pool.connection() as conn:
             result = await conn.execute(
                 "SELECT relname,relrowsecurity FROM pg_class WHERE relname IN "
-                "('audits','audit_events','proposal_versions','revision_runs')"
+                "('audits','audit_events','proposal_versions','revision_runs',"
+                "'research_projects','paper_workflow_records','paper_workflow_events')"
             )
             rows = await result.fetchall()
-            assert len(rows) == 4 and all(row["relrowsecurity"] for row in rows)
+            assert len(rows) == 7 and all(row["relrowsecurity"] for row in rows)
             for role in ("anon", "authenticated"):
-                for table in ("audits", "audit_events", "proposal_versions", "revision_runs"):
+                for table in (
+                    "audits",
+                    "audit_events",
+                    "proposal_versions",
+                    "revision_runs",
+                    "research_projects",
+                    "paper_workflow_records",
+                    "paper_workflow_events",
+                ):
                     result = await conn.execute(
                         "SELECT has_table_privilege(%s,%s,'SELECT')", (role, table)
                     )

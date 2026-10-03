@@ -35,6 +35,8 @@ from claim_trellis.models import (
     RevisionRequest,
     RevisionRun,
 )
+from claim_trellis.paper_api import router as paper_router
+from claim_trellis.paper_store import PaperWorkflowStore
 from claim_trellis.postgres_store import PostgresAuditStore
 from claim_trellis.provider import JudgmentProvider
 from claim_trellis.providers import TypeSafeJevProvider
@@ -82,6 +84,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.store = store
     app.state.lifecycle_store = lifecycle_store
     app.state.judgment_provider = None
+    app.state.paper_workflow_store = (
+        PaperWorkflowStore(pool=store.pool)
+        if isinstance(store, PostgresAuditStore)
+        else PaperWorkflowStore(path=resolved_settings.resolved_database_path)
+    )
+    app.include_router(paper_router)
     app.state.usage_guard = (
         PostgresUsageGuard(store.pool) if isinstance(store, PostgresAuditStore) else None
     )
