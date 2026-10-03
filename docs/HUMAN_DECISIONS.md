@@ -1,6 +1,6 @@
 # ClaimTrellis v0.1 decisions and release gates
 
-**Current status: ClaimTrellis v0.1 — P0 Accepted / P1.1–P1.3 Authorized / Pre-Release**
+**Current status: ClaimTrellis v0.1 — P0/P1.1–P1.3 Accepted / P1.4–P1.5 Active / Pre-Release**
 
 The v0.1 product direction is frozen. ClaimTrellis is an independent project and its only
 primary brand. TypeSafe Jev is the first structured judgment provider and part of the
@@ -76,15 +76,34 @@ P0 PR. This historical P0 scope ended with acceptance. The implementation contra
 The owner authorized three separate PRs starting with #21 on 2026-10-03:
 contracts/persistence, exact-span candidate extraction/human decisions, and bibliography/
 uploaded-source mapping/human identity confirmation. PRs are stacked in that order and
-must remain open for human acceptance; no merge is authorized. P0's judgment core, six
+were accepted on 2026-10-03 and merged in order after restacking. P0's judgment core, six
 labels, CLI and provider architecture remain unchanged. No dependency upgrades are needed.
 
-P1.4 audit orchestration/quota redesign, P1.5 Matrix, P1.6 retrieval experiments and P1.7
-full-workflow acceptance are not in scope. These first three stages neither call Jev nor
+These first three stages neither call Jev nor
 start audits. Workflow manuscript text (and, in P1.3, source text) is retained separately
 from the existing minimal audit snapshot; operators must review [privacy](PRIVACY.md).
 No release, visibility change, production migration/deployment or promotion is authorized.
 See [the explicit stage contract](P1_PAPER_WORKFLOW.md).
+
+## Authorized P1.4–P1.5: product workflow closure
+
+The owner authorized one PR for run/item persistence, ordinary ClaimAudit execution,
+idempotency/retry/paper-aware budgeting, Matrix projection and the browser Review Queue
+on 2026-10-03. Implement P1.4a/b then P1.5a/b; stop for human acceptance and do not merge.
+ClaimAudit remains the sole judgment unit; no PaperVerdict, paper score, bulk verdict,
+new provider/dependency/CLI, retrieval/model/policy fork or account expansion.
+
+P1.6 retrieval research and P1.7 full E2E/live Jev/migration rehearsal remain deferred.
+Use synthetic data and mock providers for this PR. No production migration, release,
+promotion or deployment configuration change is authorized. Paper provider quota numbers
+need owner/operator decisions after cost testing; new budgets default to unconfigured
+and fail closed, not an implicit increase to the existing hosted limits.
+
+Implementation is ready for P1.4/P1.5 human acceptance; it is **not accepted or merged**
+by these automated checks. The stage contract lists the tests and local no-key synthetic
+browser smoke. Owner decisions still required: functional acceptance, measured paper
+budget values, confidential-data retention/deletion policy, and any separate production
+backup/migration approval. P1.6/P1.7 remain unstarted.
 
 ## Authorized v0.1 exception: UI and proposal revision loop
 

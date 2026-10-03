@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paper Workflow — ClaimTrellis</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/mark.svg">
+  <script src="/assets/theme.js"></script>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="history-page">
+  <a class="skip-link" href="#paper-main">Skip to paper workflow</a>
+  <header class="site-header"><a class="brand" href="/">ClaimTrellis<span class="alpha">v0.1</span></a>
+    <div class="header-tools"><a href="/history">Audit history</a><a href="/#workspace">Evidence Console ↗</a>
+      <div class="theme-switch" role="group" aria-label="Color theme"><button type="button" data-theme-choice="light" aria-label="Light theme" aria-pressed="true">☀</button><button type="button" data-theme-choice="night" aria-label="Night theme" aria-pressed="false">☾</button></div>
+    </div>
+  </header>
+  <main id="paper-main" class="shell paper-main">
+    <p class="micro accent">PAPER WORKFLOW / HUMAN FINAL JUDGMENT</p><h1>Review queue &amp; matrix<span class="accent">.</span></h1>
+    <p>Confirm claims and source identities before auditing. Every source has its own ordinary ClaimAudit; this page never assigns a paper verdict or score.</p>
+    <p id="paper-status" role="status" aria-live="polite">Preparing your workspace…</p>
+    <section id="project-controls" hidden>
+      <form id="project-create" class="paper-inline"><label for="project-name">New project name</label><input id="project-name" required maxlength="200"><button class="button secondary" type="submit">Create project</button></form>
+      <label for="project-select">Research project</label><select id="project-select"><option value="">Choose a project</option></select>
+      <button id="paper-refresh" class="button secondary" type="button">Refresh persisted state</button>
+    </section>
+    <div id="paper-content"></div>
+    <p><a href="/#workspace">← Back to Evidence Console</a></p>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous" defer></script>
+  <script src="/assets/auth.js" defer></script><script src="/assets/paper-workflow.js" defer></script>
+</body>
+</html>

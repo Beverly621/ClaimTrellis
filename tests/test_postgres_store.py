@@ -279,10 +279,11 @@ async def test_sql_privileges_and_rls_defense_in_depth(pg_url) -> None:
             result = await conn.execute(
                 "SELECT relname,relrowsecurity FROM pg_class WHERE relname IN "
                 "('audits','audit_events','proposal_versions','revision_runs',"
-                "'research_projects','paper_workflow_records','paper_workflow_events')"
+                "'research_projects','paper_workflow_records','paper_workflow_events',"
+                "'paper_audit_runs','paper_audit_items','paper_run_members','paper_provider_usage')"
             )
             rows = await result.fetchall()
-            assert len(rows) == 7 and all(row["relrowsecurity"] for row in rows)
+            assert len(rows) == 11 and all(row["relrowsecurity"] for row in rows)
             for role in ("anon", "authenticated"):
                 for table in (
                     "audits",
@@ -292,6 +293,10 @@ async def test_sql_privileges_and_rls_defense_in_depth(pg_url) -> None:
                     "research_projects",
                     "paper_workflow_records",
                     "paper_workflow_events",
+                    "paper_audit_runs",
+                    "paper_audit_items",
+                    "paper_run_members",
+                    "paper_provider_usage",
                 ):
                     result = await conn.execute(
                         "SELECT has_table_privilege(%s,%s,'SELECT')", (role, table)

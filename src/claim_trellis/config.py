@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     jev_api_key: str | None = Field(default=None, validation_alias="TYPESAFE_API_KEY")
     auto_accept_enabled: bool = False
     hosted_provider_enabled: bool = False
+    paper_daily_user_limit: int | None = Field(default=None, ge=1)
+    paper_run_provider_limit: int | None = Field(default=None, ge=1)
+    paper_max_concurrent_provider_calls: int | None = Field(default=None, ge=1)
     account_access_enabled: bool = False
     ip_hash_secret: str | None = None
     relation_confidence_threshold: float = Field(default=0.90, ge=0, le=1)

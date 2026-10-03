@@ -70,50 +70,70 @@ class PostgresUsageGuard:
     ) -> str:
         identifier = usage_id or str(uuid4())
         async with self.pool.connection() as conn:
-            # Every caller takes these locks in the same order, across all app instances.
-            for key in (
-                f"claim-trellis-usage:user:{owner_user_id}",
-                f"claim-trellis-usage:ip:{ip_hash}",
-                *([f"claim-trellis-usage:audit:{audit_id}"] if audit_id else []),
-            ):
-                await conn.execute(
-                    "SELECT pg_advisory_xact_lock(hashtextextended(%s::text, 0))", (key,)
-                )
-            existing = await conn.execute(
-                "SELECT 1 FROM provider_usage WHERE usage_id=%s", (identifier,)
-            )
-            if await existing.fetchone() is not None:
-                raise HostedProviderUnavailable("Hosted provider request already reserved.")
-            for column, value, limit in (
-                ("owner_user_id", owner_user_id, self.USER_LIMIT),
-                ("ip_hash", ip_hash, self.IP_LIMIT),
-            ):
-                result = await conn.execute(
-                    f"SELECT count(*) AS n FROM provider_usage WHERE {column}=%s "
-                    "AND created_at >= now() - interval '24 hours'",
-                    (value,),
-                )
-                row = await result.fetchone()
-                if row is not None and row["n"] >= limit:
-                    raise HostedUsageLimit("user" if column == "owner_user_id" else "ip")
-            if operation == "revision":
-                if audit_id is None:
-                    raise ValueError("Revision usage requires an audit ID.")
-                result = await conn.execute(
-                    "SELECT count(*) AS n FROM provider_usage "
-                    "WHERE audit_id=%s AND operation='revision'",
-                    (audit_id,),
-                )
-                row = await result.fetchone()
-                if row is not None and row["n"] >= self.AUDIT_REVISION_LIMIT:
-                    raise HostedUsageLimit("audit_revision")
-            await conn.execute(
-                "INSERT INTO provider_usage "
-                "(usage_id,owner_user_id,ip_hash,audit_id,provider,operation,status) "
-                "VALUES (%s,%s,%s,%s,%s,%s,'started')",
-                (identifier, owner_user_id, ip_hash, audit_id, provider, operation),
+            await self.reserve_in_transaction(
+                conn,
+                owner_user_id,
+                ip_hash,
+                provider,
+                operation,
+                audit_id=audit_id,
+                usage_id=identifier,
             )
         return identifier
+
+    async def reserve_in_transaction(
+        self,
+        conn: Any,
+        owner_user_id: str,
+        ip_hash: str,
+        provider: str,
+        operation: Operation,
+        *,
+        audit_id: str | None = None,
+        usage_id: str,
+        user_limit: int | None = None,
+    ) -> None:
+        """Join the caller's transaction; ordinary audit limits remain unchanged."""
+        identifier = usage_id
+        # Lock order is unchanged for ordinary calls and their paper reservations.
+        for key in (
+            f"claim-trellis-usage:user:{owner_user_id}",
+            f"claim-trellis-usage:ip:{ip_hash}",
+            *([f"claim-trellis-usage:audit:{audit_id}"] if audit_id else []),
+        ):
+            await conn.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(%s::text, 0))", (key,)
+            )
+        existing = await conn.execute(
+            "SELECT 1 FROM provider_usage WHERE usage_id=%s", (identifier,)
+        )
+        if await existing.fetchone() is not None:
+            raise HostedProviderUnavailable("Hosted provider request already reserved.")
+        for column, value, limit in (
+            ("owner_user_id", owner_user_id, user_limit or self.USER_LIMIT),
+            ("ip_hash", ip_hash, self.IP_LIMIT),
+        ):
+            result = await conn.execute(
+                f"SELECT count(*) AS n FROM provider_usage WHERE {column}=%s AND created_at >= now() - interval '24 hours'",
+                (value,),
+            )
+            row = await result.fetchone()
+            if row is not None and row["n"] >= limit:
+                raise HostedUsageLimit("user" if column == "owner_user_id" else "ip")
+        if operation == "revision":
+            if audit_id is None:
+                raise ValueError("Revision usage requires an audit ID.")
+            result = await conn.execute(
+                "SELECT count(*) AS n FROM provider_usage WHERE audit_id=%s AND operation='revision'",
+                (audit_id,),
+            )
+            row = await result.fetchone()
+            if row is not None and row["n"] >= self.AUDIT_REVISION_LIMIT:
+                raise HostedUsageLimit("audit_revision")
+        await conn.execute(
+            "INSERT INTO provider_usage (usage_id,owner_user_id,ip_hash,audit_id,provider,operation,status) VALUES (%s,%s,%s,%s,%s,%s,'started')",
+            (identifier, owner_user_id, ip_hash, audit_id, provider, operation),
+        )
 
     async def finish(
         self,

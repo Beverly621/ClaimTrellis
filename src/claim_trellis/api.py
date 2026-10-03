@@ -36,6 +36,9 @@ from claim_trellis.models import (
     RevisionRun,
 )
 from claim_trellis.paper_api import router as paper_router
+from claim_trellis.paper_matrix import router as paper_matrix_router
+from claim_trellis.paper_run_api import router as paper_run_router
+from claim_trellis.paper_runs import PaperRunStore
 from claim_trellis.paper_store import PaperWorkflowStore
 from claim_trellis.postgres_store import PostgresAuditStore
 from claim_trellis.provider import JudgmentProvider
@@ -90,6 +93,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         else PaperWorkflowStore(path=resolved_settings.resolved_database_path)
     )
     app.include_router(paper_router)
+    app.state.paper_run_store = PaperRunStore(
+        app.state.paper_workflow_store,
+        cast(SQLiteAsyncStore | PostgresAuditStore, lifecycle_store),
+        resolved_settings,
+    )
+    app.include_router(paper_run_router)
+    app.include_router(paper_matrix_router)
     app.state.usage_guard = (
         PostgresUsageGuard(store.pool) if isinstance(store, PostgresAuditStore) else None
     )
@@ -337,6 +347,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         @app.get("/history", include_in_schema=False)
         def history() -> FileResponse:
             return FileResponse(web_dir / "history.html")
+
+        @app.get("/projects", include_in_schema=False)
+        def projects() -> FileResponse:
+            return FileResponse(web_dir / "projects.html")
 
     return app
 

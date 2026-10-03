@@ -172,40 +172,44 @@ class AuditStore:
     def save(self, audit: ClaimAudit, *, event_type: str = "audit.created") -> ClaimAudit:
         with self._connect() as c:
             c.execute("BEGIN IMMEDIATE")
-            # No upsert: existing snapshots may only change through lifecycle operations.
-            c.execute(
-                "INSERT INTO audits VALUES (?, ?, ?, ?)",
-                (
-                    audit.audit_id,
-                    audit.provenance.created_at.isoformat(),
-                    utc_now().isoformat(),
-                    audit.model_dump_json(),
-                ),
-            )
-            snapshot = self._create_version(c, audit, emit_event=False)
-            self._event(c, audit, event_type, audit.model_dump(mode="json"))
-            self._event(c, audit, "source.loaded", {"source": audit.source.model_dump(mode="json")})
-            for name, payload in initial_events(audit):
-                self._event(c, audit, name, payload)
-            self._event(
-                c,
-                audit,
-                "checks.completed",
-                {"checks": audit.deterministic_checks.model_dump(mode="json")},
-            )
-            self._event(
-                c,
-                audit,
-                "judgment.completed",
-                {
-                    "judgment": audit.judgment_result.model_dump(mode="json")
-                    if audit.judgment_result
-                    else None
-                },
-            )
-            self._event(
-                c, audit, "proposal.created", {"proposal": snapshot.model_dump(mode="json")}
-            )
+            self.save_in_transaction(c, audit, event_type=event_type)
+        return audit
+
+    def save_in_transaction(
+        self, c: sqlite3.Connection, audit: ClaimAudit, *, event_type: str = "audit.created"
+    ) -> ClaimAudit:
+        """Reuse ordinary persistence inside a caller-owned atomic workflow transaction."""
+        c.execute(
+            "INSERT INTO audits VALUES (?, ?, ?, ?)",
+            (
+                audit.audit_id,
+                audit.provenance.created_at.isoformat(),
+                utc_now().isoformat(),
+                audit.model_dump_json(),
+            ),
+        )
+        snapshot = self._create_version(c, audit, emit_event=False)
+        self._event(c, audit, event_type, audit.model_dump(mode="json"))
+        self._event(c, audit, "source.loaded", {"source": audit.source.model_dump(mode="json")})
+        for name, payload in initial_events(audit):
+            self._event(c, audit, name, payload)
+        self._event(
+            c,
+            audit,
+            "checks.completed",
+            {"checks": audit.deterministic_checks.model_dump(mode="json")},
+        )
+        self._event(
+            c,
+            audit,
+            "judgment.completed",
+            {
+                "judgment": audit.judgment_result.model_dump(mode="json")
+                if audit.judgment_result
+                else None
+            },
+        )
+        self._event(c, audit, "proposal.created", {"proposal": snapshot.model_dump(mode="json")})
         return audit
 
     @staticmethod
