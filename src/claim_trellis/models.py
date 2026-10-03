@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -79,6 +80,40 @@ class EvidencePassage(BaseModel):
     start_char: int = Field(ge=0)
     end_char: int = Field(ge=0)
     sha256: str
+    block_ids: list[str] = Field(default_factory=list)
+    page: int | None = None
+    section: str | None = None
+    paragraph: int | None = None
+
+
+class DocumentBlockReference(BaseModel):
+    """Persist locators and hashes, not the full normalized source text."""
+
+    block_id: str
+    block_type: str
+    locator: str
+    page: int | None = None
+    section: str | None = None
+    paragraph: int | None = None
+    char_start: int = Field(ge=0)
+    char_end: int = Field(ge=0)
+    sha256: str
+
+
+class DocumentBlock(DocumentBlockReference):
+    text: str
+
+
+class EvidenceSet(BaseModel):
+    passages: list[EvidencePassage] = Field(min_length=1, max_length=3)
+    sha256: str
+
+
+class CheckFinding(BaseModel):
+    check_id: str
+    status: str
+    reason: str
+    blocking: bool = False
 
 
 class RetrievedCandidate(BaseModel):
@@ -102,6 +137,8 @@ class DeterministicChecks(BaseModel):
     evidence_numbers: list[NumericToken] = Field(default_factory=list)
     unmatched_claim_numbers: list[NumericToken] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    check_set_version: str = "deterministic-v1"
+    findings: list[CheckFinding] = Field(default_factory=list)
 
 
 class ChoiceJudgment(BaseModel):
@@ -114,7 +151,10 @@ class ChoiceJudgment(BaseModel):
     def validate_probabilities(cls, value: dict[str, float]) -> dict[str, float]:
         if not value:
             raise ValueError("probabilities must not be empty")
-        if any(probability < 0 or probability > 1 for probability in value.values()):
+        if any(
+            not math.isfinite(probability) or probability < 0 or probability > 1
+            for probability in value.values()
+        ):
             raise ValueError("probabilities must be between 0 and 1")
         if abs(sum(value.values()) - 1.0) > 0.03:
             raise ValueError("probabilities must sum to approximately 1")
@@ -142,6 +182,12 @@ class JudgmentResult(BaseModel):
     retry_count: int = Field(ge=0)
     raw_answers: dict[str, Any]
     judgment_summary: str | None = Field(default=None, max_length=2000)
+    claim_type: ChoiceJudgment | None = None
+    intervention_or_exposure_alignment: ChoiceJudgment | None = None
+    comparator_alignment: ChoiceJudgment | None = None
+    outcome_alignment: ChoiceJudgment | None = None
+    timeframe_alignment: ChoiceJudgment | None = None
+    direction_alignment: ChoiceJudgment | None = None
 
     @field_validator("relation")
     @classmethod
@@ -174,6 +220,11 @@ class Provenance(BaseModel):
     question_set_version: str
     policy_version: str
     created_at: datetime = Field(default_factory=utc_now)
+    parser_version: str = "legacy-flat-v1"
+    check_set_version: str = "deterministic-v1"
+    requested_model: str | None = None
+    resolved_model: str | None = None
+    evidence_set_hash: str | None = None
 
 
 class ClaimAudit(BaseModel):
@@ -193,6 +244,9 @@ class ClaimAudit(BaseModel):
     current_proposal_version: int = 1
     review_status: ReviewStatus = ReviewStatus.PENDING
     state_revision: int = 0
+    source_blocks: list[DocumentBlockReference] = Field(default_factory=list)
+    evidence_set: EvidenceSet | None = None
+    requested_quote: str | None = None
 
 
 class ProposalVersion(BaseModel):
@@ -209,6 +263,9 @@ class ProposalVersion(BaseModel):
     judgment: JudgmentResult | None = None
     created_at: datetime = Field(default_factory=utc_now)
     review_status: ReviewStatus = ReviewStatus.PENDING
+    evidence_set: EvidenceSet | None = None
+    deterministic_checks: DeterministicChecks | None = None
+    provenance: Provenance | None = None
 
 
 class RevisionContext(BaseModel):
@@ -226,6 +283,14 @@ class RevisionRequest(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=100)
     reviewer: str = Field(min_length=1, max_length=200)
     feedback: str = Field(min_length=1, max_length=10000)
+    selected_passage_ids: list[str] | None = Field(default=None, min_length=1, max_length=3)
+
+    @field_validator("selected_passage_ids")
+    @classmethod
+    def unique_passages(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and len(set(value)) != len(value):
+            raise ValueError("Evidence passage IDs must be unique.")
+        return value
 
     @field_validator("reviewer", "feedback")
     @classmethod
@@ -253,14 +318,37 @@ class AuditRequest(BaseModel):
     citation: str | None = Field(default=None, max_length=2_000)
     quote: str | None = Field(default=None, max_length=20_000)
     source: SourceMetadata = Field(default_factory=SourceMetadata)
-    top_k: int = Field(default=5, ge=1, le=20)
+    top_k: int = Field(default=10, ge=1, le=20)
     use_judgment_provider: bool = True
+    source_blocks: list[DocumentBlock] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_source_blocks(self) -> AuditRequest:
+        import hashlib
+
+        from claim_trellis.document_blocks import validate_blocks
+
+        validate_blocks(self.source_text, self.source_blocks)
+        if (
+            self.source.content_sha256 is not None
+            and self.source.content_sha256 != hashlib.sha256(self.source_text.encode()).hexdigest()
+        ):
+            raise ValueError("Source content hash must match the supplied normalized text.")
+        return self
 
 
 class EvidenceSearchRequest(BaseModel):
     claim: str = Field(min_length=3, max_length=20_000)
     source_text: str = Field(min_length=1, max_length=2_000_000)
-    top_k: int = Field(default=5, ge=1, le=20)
+    top_k: int = Field(default=10, ge=1, le=20)
+    source_blocks: list[DocumentBlock] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_source_blocks(self) -> EvidenceSearchRequest:
+        from claim_trellis.document_blocks import validate_blocks
+
+        validate_blocks(self.source_text, self.source_blocks)
+        return self
 
 
 class HumanReviewRequest(BaseModel):
@@ -308,3 +396,5 @@ class ParsedDocument(BaseModel):
     character_count: int = Field(ge=0)
     citation_sentences: list[ParsedCitationSentence]
     warnings: list[str] = Field(default_factory=list)
+    blocks: list[DocumentBlock] = Field(default_factory=list)
+    parser_version: str = "legacy-flat-v1"

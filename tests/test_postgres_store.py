@@ -107,7 +107,13 @@ async def test_persistence_isolation_and_ordering_across_store_instances(pg_url)
         assert [event.event_type for event in events] == [
             "audit.created",
             "source.loaded",
+            "document.parsed",
+            "retrieval.started",
+            "retrieval.completed",
+            "candidate.created",
+            "evidence.selected",
             "checks.completed",
+            "judgment.completed",
             "proposal.created",
         ]
         async with first.pool.connection() as conn:

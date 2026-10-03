@@ -13,7 +13,7 @@ When the default Jev adapter is configured with `TYPESAFE_API_KEY` and the user 
 an audit, the service transmits:
 
 - the atomic claim;
-- one selected evidence passage;
+- one selected evidence set of one to three source passages (at most 8,000 source characters);
 - the minimum citation/source metadata needed for interpretation;
 - the versioned question definitions.
 
@@ -23,15 +23,18 @@ source completeness, and parent/version references. Feedback is untrusted review
 not replacement source evidence. Reviewer aliases are recorded locally, not included in
 the provider's revision context.
 
-It does not transmit the entire manuscript by design. Users must review TypeSafe's current
+It does not transmit a separate full-manuscript field. A short source can fit entirely in
+the selected passages. Users must review TypeSafe's current
 terms and institutional rules. Zero-data-retention requirements need an appropriate
 provider agreement; the open-source software cannot create that agreement.
 
 ## Persistence and anonymous identity
 
 Local mode stores audit records in SQLite. Hosted mode stores owner-scoped audit records,
-selected evidence, feedback, proposal versions, revision runs and audit events in
-PostgreSQL. Raw PDF/DOCX/TXT/MD bytes and the full parsed source text are not persisted.
+candidate and selected evidence, feedback, proposal versions, revision runs, text-free
+block locator/hash manifests and audit events in PostgreSQL. Raw PDF/DOCX/TXT/MD bytes
+and an additional full parsed-source copy are not persisted. Retained candidate passages
+can contain all text of a short source; treat the entire record as potentially sensitive.
 Hosted provider usage rows record the owner ID, a secret-keyed HMAC of the canonical
 requester IP, audit ID for revisions, provider, operation, status, timestamps, optional
 token counts, and a sanitized error code. They do not store the raw IP, claim, evidence,

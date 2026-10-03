@@ -46,7 +46,12 @@ def test_store_appends_create_and_review_events(tmp_path) -> None:
     assert [event.event_type for event in store.events("audit-1")] == [
         "audit.created",
         "source.loaded",
+        "document.parsed",
+        "retrieval.started",
+        "retrieval.completed",
+        "evidence.selected",
         "checks.completed",
+        "judgment.completed",
         "proposal.created",
         "feedback.recorded",
         "review.accepted",

@@ -23,8 +23,8 @@ support this claim?*
 - Retrieval narrows a source to short candidate passages before any model call.
 - A provider interface supplies narrow semantic judgments; the default Jev adapter asks
   independent questions in parallel and never generates evidence.
-- No model verdict becomes a final human verdict. Automatic acceptance is disabled by
-  default until thresholds are validated on a domain-specific labeled dataset.
+- No model verdict becomes a final human verdict. Automatic acceptance remains disabled
+  in P0; model confidence never authorizes an Accept action.
 - Every result records its source locator, evidence text hash, question-set version,
   model version, probabilities, policy version, and reviewer action.
 
@@ -34,11 +34,17 @@ Read [the trust specification](docs/TRUST_SPEC.md) before deploying the software
 
 - Parse English `.txt`, `.md`, `.pdf`, and `.docx` files.
 - Detect numeric and author-year citation markers and produce citation-bearing sentences.
-- Split sources into stable, locator-preserving evidence passages.
-- Retrieve candidate evidence using a deterministic BM25-style lexical ranker.
-- Check exact quotes and numeric consistency in code.
-- Ask the configured provider for relation, scope, population, causal-fidelity, and
-  evidence-sufficiency judgments in one request.
+- Preserve normalized text with structured blocks and grounded page, heading, paragraph
+  or line locators where the source format provides them.
+- Retrieve up to ten candidates by default using deterministic BM25-style lexical
+  ranking, explicit feature boosts, bounded adjacent context and de-duplication.
+- Judge an evidence set of one to three source passages; let reviewers correct that set
+  through a new immutable proposal version.
+- Run versioned quote, number, unit, range, lexical direction, comparator, citation and
+  completeness checks in code. Identity and scientific interpretation still need review.
+- Ask the configured provider for relation, claim type, population, intervention,
+  comparator, outcome, timeframe, direction, scope, causal-fidelity, evidence-sufficiency
+  and injection signals in one request.
 - Distinguish `supports`, `partially_supports`, `contradicts`, `not_addressed`,
   `insufficient_context`, and `source_unavailable`.
 - Apply a fail-closed decision policy and capture a final human review separately.
@@ -113,7 +119,8 @@ claim-trellis benchmark score \
 
 Interactive API documentation is available at `/docs` while the service is running.
 See [UI and review-loop contracts](docs/UI_AND_REVIEW_V1.md) for concurrency, migration,
-and compatibility details.
+and compatibility details, and [P0 Core Audit Fidelity](docs/P0_CORE_AUDIT_FIDELITY.md)
+for additive evidence-selection fields and versioned contracts.
 
 ## Hosted anonymous workspaces
 
@@ -167,9 +174,10 @@ docs/                   Trust, architecture, evaluation, privacy, and threat mod
 
 Documents may be confidential or copyrighted. ClaimTrellis defaults to local parsing,
 local persistence, and no telemetry. Hosted anonymous mode persists the selected evidence,
-audit, feedback and provenance in PostgreSQL, but not raw upload bytes or the full parsed
-source text. When the Jev adapter is enabled, the claim,
-selected passage, and citation context are sent to TypeSafe. Revisions also transmit
+audit, feedback, block locator/hash manifests and provenance in PostgreSQL, but not raw
+upload bytes or an additional full parsed-source copy. Candidate and selected passages
+can contain all text of a short source. When the Jev adapter is enabled, the claim,
+selected evidence set, and citation context are sent to TypeSafe. Revisions also transmit
 human feedback, previous judgment, and deterministic-check context. Review provider terms and institutional policy
 before processing unpublished or protected material. See [SECURITY.md](SECURITY.md) and
 [docs/PRIVACY.md](docs/PRIVACY.md). The initial dependency and source review is recorded in

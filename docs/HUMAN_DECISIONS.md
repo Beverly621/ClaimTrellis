@@ -66,6 +66,11 @@ deployment configuration, brand, license, and release strategy are unchanged. No
 formal Release, deployment, promotion, or unvalidated accuracy claim is authorized.
 See [the core capability roadmap](ROADMAP.md).
 
+The owner confirmed on 2026-10-03 that all P0 implementation, tests, documentation and
+follow-up fixes must stay in PR #20 (`codex/core-capability-roadmap`); do not open a second
+P0 PR. Only P0 is in scope. The implementation contract is
+[Core Audit Fidelity v2](P0_CORE_AUDIT_FIDELITY.md).
+
 ## Authorized v0.1 exception: UI and proposal revision loop
 
 The owner authorized UI Design v1 and the minimum backend changes for versioned provider

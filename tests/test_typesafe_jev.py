@@ -3,11 +3,11 @@ import json
 import httpx
 import pytest
 
-from claim_trellis.providers.typesafe_jev import TypeSafeJevProvider, build_request
+from claim_trellis.providers.typesafe_jev import QUESTIONS, TypeSafeJevProvider, build_request
 
 
 def response_body() -> dict[str, object]:
-    return {
+    body = {
         "model": "jev-1.13.0",
         "answers": {
             "relation": {
@@ -62,6 +62,24 @@ def response_body() -> dict[str, object]:
         },
         "usage": {"input_tokens": 411, "output_tokens": 25},
     }
+    for key in (
+        "claim_type",
+        "intervention_or_exposure_alignment",
+        "comparator_alignment",
+        "outcome_alignment",
+        "timeframe_alignment",
+        "direction_alignment",
+    ):
+        chosen = "result" if key == "claim_type" else "aligned"
+        body["answers"][key] = {
+            "type": "choice",
+            "choice": chosen,
+            "confidence": 0.96,
+            "probabilities": {
+                option: float(option == chosen) for option in QUESTIONS[key]["criteria"]
+            },
+        }
+    return body
 
 
 def test_request_asks_parallel_atomic_questions() -> None:
@@ -74,6 +92,12 @@ def test_request_asks_parallel_atomic_questions() -> None:
         "causal_fidelity",
         "context_sufficiency",
         "prompt_injection",
+        "claim_type",
+        "intervention_or_exposure_alignment",
+        "comparator_alignment",
+        "outcome_alignment",
+        "timeframe_alignment",
+        "direction_alignment",
     }
 
 

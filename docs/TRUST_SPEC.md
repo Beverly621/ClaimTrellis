@@ -25,14 +25,16 @@ None of these means that a claim is globally true or false.
 - text normalization and stable hashing;
 - citation-marker detection;
 - quote existence and passage location;
-- numeric token extraction and comparison;
+- numeric token extraction, supported exact unit conversions, explicit ranges and
+  conservative lexical direction/comparator checks;
 - date filtering and source-age checks;
 - retrieval, ranking, persistence, policy, and exports.
 
 ### Structured judgment provider
 
 - semantic relation between claim and evidence;
-- scope and population alignment;
+- scope, population, intervention/exposure, comparator, outcome, timeframe and direction
+  alignment, with a separate claim-type judgment;
 - whether causal language overstates the evidence;
 - whether the passage contains enough context for the requested judgment;
 - whether source text contains an apparent prompt-injection attempt.
@@ -50,9 +52,12 @@ None of these means that a claim is globally true or false.
   answer, prompt-injection signal, or unvalidated policy always routes to review.
 - Numeric checks can add warnings or block an automatic proposal; they cannot establish
   semantic support.
+- An applicable unclear or low-confidence v3 dimension routes a support signal to review;
+  a confident material mismatch prevents a supported proposal.
 - Abstract-only evidence cannot establish that a full paper is silent.
+- A Top-K selected set cannot establish full-source silence, even with full-text metadata.
 - Model confidence is recorded as a property of a distribution, not truth probability.
-- Until a policy is validated, `auto_accept_enabled` remains false.
+- P0 always sets `auto_accepted=false` and requires a human decision.
 
 ## Versions
 
@@ -62,8 +67,10 @@ Every result records:
 - policy version;
 - question-set version;
 - retrieval version;
+- parser and deterministic-check versions;
 - requested and resolved model version;
 - normalized claim and evidence hashes;
+- canonical evidence-set hash and per-proposal evidence snapshots;
 - UTC creation time.
 
 Changing question wording, criteria, label mapping, retrieval scoring, or policy behavior
@@ -75,19 +82,23 @@ The default provider is TypeSafe Jev and the requested model is pinned to `jev-1
 Release builds must not silently use `jev-latest`. A provider or model upgrade is evaluated
 as a new system version.
 
-The configured provider receives only the atomic claim, selected evidence passage,
+The configured provider receives only the atomic claim, selected evidence set (one to
+three passages, at most 8,000 source characters),
 citation metadata required for interpretation, and explicit question criteria. Whole
-manuscripts are never sent.
+manuscripts are not sent as a separate field. A short source may fit entirely within the
+selected passages; this is not a guarantee that every request excludes complete documents.
 
 ## Decision policy
 
-The initial policy is intentionally conservative:
+`fail-closed-v2` is intentionally conservative:
 
 - deterministic failure -> `evidence_missing` or `review_required`;
 - high-confidence contradiction -> proposed `contradicted`;
-- high-confidence support plus aligned scope/population/causal framing and sufficient
-  context -> proposed `supported`;
-- partial or missing coverage -> proposed `partially_supported` or `unsupported`;
+- high-confidence support plus aligned applicable scientific dimensions, passing
+  deterministic checks and sufficient context -> proposed `supported`;
+- partial coverage -> proposed `partially_supported`; selected-context silence -> review;
 - every proposal still requires human confirmation.
 
 Threshold constants exist to make experiments reproducible, not to claim validation.
+The six provider relations and the separate policy dispositions remain unchanged.
+See [the P0 contract](P0_CORE_AUDIT_FIDELITY.md) for compatibility and limitations.

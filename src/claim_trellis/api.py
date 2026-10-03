@@ -228,7 +228,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: EvidenceSearchRequest, identity: Principal
     ) -> list[RetrievedCandidate]:
         _ = identity
-        return retrieve(request.claim, request.source_text, top_k=request.top_k)
+        return retrieve(
+            request.claim, request.source_text, top_k=request.top_k, blocks=request.source_blocks
+        )
 
     @app.post("/api/v1/audits", response_model=ClaimAudit, status_code=201)
     async def create_audit(

@@ -2899,3 +2899,7 @@ input::placeholder, textarea::placeholder { color: #5a7077; }
   .shelf-tile { transition: none; }
   .shelf-tile:hover { transform: none; }
 }
+/* P0 evidence controls use the existing review design, with native keyboard inputs. */
+.candidate-choice { display: flex; gap: 0.75rem; align-items: flex-start; }
+.candidate-choice input[type="checkbox"] { width: auto; min-width: 1rem; margin-top: 0.2rem; }
+.evidence-candidates .context-block { max-height: 24rem; overflow: auto; }

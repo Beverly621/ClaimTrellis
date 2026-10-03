@@ -23,6 +23,13 @@ claim. Before public benchmark use:
 
 ## Validate
 
+`p0_regression.json` is a separate synthetic engineering fixture, exercised by
+`tests/test_audit_fidelity.py`. It covers quote normalization, percent/decimal distinctions,
+explicit units, missing units, ranges, direction/null conflicts and comparator absence.
+Parsing, retrieval grounding, v3 mismatches, malformed answers and transactional evidence
+correction have additional regression tests. These cases are neither held-out literature
+nor a measurement of Jev accuracy or false-support rate.
+
 ```bash
 claim-trellis benchmark validate benchmarks/literature_seed.jsonl
 ```

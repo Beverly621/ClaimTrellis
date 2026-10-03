@@ -12,6 +12,8 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 
+from claim_trellis.audit_fidelity import complete_evidence_revision, initial_events
+from claim_trellis.evidence_sets import revision_evidence
 from claim_trellis.models import (
     AuditEvent,
     ClaimAudit,
@@ -112,6 +114,9 @@ class PostgresAuditStore:
             probabilities=judgment.relation.probabilities if judgment else {},
             policy=audit.proposal,
             judgment=judgment,
+            evidence_set=audit.evidence_set,
+            deterministic_checks=audit.deterministic_checks,
+            provenance=audit.provenance,
         )
         await conn.execute(
             "INSERT INTO proposal_versions "
@@ -164,12 +169,25 @@ class PostgresAuditStore:
                 "source.loaded",
                 {"source": audit.source.model_dump(mode="json")},
             )
+            for name, payload in initial_events(audit):
+                await self._event(conn, owner_user_id, audit, name, payload)
             await self._event(
                 conn,
                 owner_user_id,
                 audit,
                 "checks.completed",
                 {"checks": audit.deterministic_checks.model_dump(mode="json")},
+            )
+            await self._event(
+                conn,
+                owner_user_id,
+                audit,
+                "judgment.completed",
+                {
+                    "judgment": audit.judgment_result.model_dump(mode="json")
+                    if audit.judgment_result
+                    else None
+                },
             )
             await self._event(
                 conn,
@@ -367,6 +385,10 @@ class PostgresAuditStore:
                 ReviewStatus.RUNNING,
             }:
                 raise LifecycleConflict("This proposal is finalized or has an active revision.")
+            try:
+                revision_evidence(audit, request)
+            except ValueError as exc:
+                raise LifecycleConflict(str(exc)) from exc
             run = RevisionRun(
                 revision_id=str(uuid4()),
                 audit_id=audit_id,
@@ -462,7 +484,11 @@ class PostgresAuditStore:
             )
 
     async def finish_revision(
-        self, owner_user_id: str, run: RevisionRun, judgment: JudgmentResult, policy: Proposal
+        self,
+        owner_user_id: str,
+        run: RevisionRun,
+        judgment: JudgmentResult | None,
+        policy: Proposal,
     ) -> RevisionRun:
         async with self.pool.connection() as conn:
             audit = await self._locked(conn, owner_user_id, run.audit_id)
@@ -505,14 +531,33 @@ class PostgresAuditStore:
             audit.judgment_result = judgment
             audit.proposal = policy
             audit.service_errors = []
-            audit.provenance = audit.provenance.model_copy(
-                update={
-                    "judgment_provider": judgment.provider,
-                    "question_set_version": judgment.question_set_version,
-                    "policy_version": policy.policy_version,
-                }
+            changed = complete_evidence_revision(audit, stored.request, judgment, policy)
+            snapshot = await self._create_version(
+                conn, owner_user_id, audit, parent, emit_event=False
             )
-            snapshot = await self._create_version(conn, owner_user_id, audit, parent)
+            if changed:
+                await self._event(conn, owner_user_id, audit, "evidence.selection.changed", changed)
+            await self._event(
+                conn,
+                owner_user_id,
+                audit,
+                "checks.completed",
+                {"checks": audit.deterministic_checks.model_dump(mode="json")},
+            )
+            await self._event(
+                conn,
+                owner_user_id,
+                audit,
+                "judgment.completed",
+                {"judgment": judgment.model_dump(mode="json") if judgment else None},
+            )
+            await self._event(
+                conn,
+                owner_user_id,
+                audit,
+                "proposal.created",
+                {"proposal": snapshot.model_dump(mode="json")},
+            )
             run.status = RevisionStatus.COMPLETED
             run.result_proposal_id = snapshot.proposal_id
             run.updated_at = utc_now()
@@ -536,8 +581,8 @@ class PostgresAuditStore:
                 {
                     "revision_id": run.revision_id,
                     "parent_proposal_id": parent,
-                    "provider": judgment.provider,
-                    "model": judgment.resolved_model,
+                    "provider": judgment.provider if judgment else None,
+                    "model": judgment.resolved_model if judgment else None,
                 },
             )
             return run

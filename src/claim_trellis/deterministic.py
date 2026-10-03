@@ -10,12 +10,13 @@ DASHES = str.maketrans({"‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "
 QUOTES = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'"})
 NUMBER_RE = re.compile(
     r"(?<![\w.])(?P<number>-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|-?\.\d+)"
-    r"\s*(?P<unit>%|percent(?:age)?|mg|g|kg|µg|μg|ml|l|mmhg|years?|months?|days?|hours?)?",
+    r"\s*(?P<unit>%|percent(?:age)?\b|mg\b|g\b|kg\b|µg\b|μg\b|ml\b|l\b|mmhg\b|years?\b|months?\b|days?\b|hours?\b)?",
     re.IGNORECASE,
 )
 
 
 def normalize_text(text: str) -> str:
+    text = re.sub(r"(?<=[A-Za-z])-\s*\n\s*(?=[a-z])", "", text)
     normalized = unicodedata.normalize("NFKC", text).translate(DASHES).translate(QUOTES)
     return re.sub(r"\s+", " ", normalized).strip().lower()
 
@@ -43,23 +44,38 @@ def extract_numeric_tokens(text: str) -> list[NumericToken]:
 
 
 def _equivalent(left: NumericToken, right: NumericToken) -> bool:
-    if abs(left.normalized - right.normalized) > 1e-9 * max(
-        1.0, abs(left.normalized), abs(right.normalized)
-    ):
-        return False
-    if left.unit and right.unit and left.unit.lower() != right.unit.lower():
-        aliases = {
-            "percent": "%",
-            "percentage": "%",
-            "year": "years",
-            "month": "months",
-            "day": "days",
-            "hour": "hours",
-        }
-        return aliases.get(left.unit.lower(), left.unit.lower()) == aliases.get(
-            right.unit.lower(), right.unit.lower()
-        )
-    return True
+    from decimal import Decimal
+
+    aliases = {
+        "percent": "%",
+        "percentage": "%",
+        "year": "years",
+        "month": "months",
+        "day": "days",
+        "hour": "hours",
+        "µg": "μg",
+    }
+    units = {
+        "kg": ("mass", "1000"),
+        "g": ("mass", "1"),
+        "mg": ("mass", "0.001"),
+        "μg": ("mass", "0.000001"),
+        "l": ("volume", "1"),
+        "ml": ("volume", "0.001"),
+    }
+    left_unit = aliases.get(left.unit or "", left.unit or "")
+    right_unit = aliases.get(right.unit or "", right.unit or "")
+    left_dimension, left_factor = units.get(left_unit, (left_unit, "1"))
+    right_dimension, right_factor = units.get(right_unit, (right_unit, "1"))
+
+    def exact_value(token: NumericToken) -> Decimal:
+        match = NUMBER_RE.match(normalize_text(token.raw))
+        # Legacy numeric tokens may lack their original spelling.
+        return Decimal(match.group("number").replace(",", "") if match else str(token.normalized))
+
+    return left_dimension == right_dimension and exact_value(left) * Decimal(
+        left_factor
+    ) == exact_value(right) * Decimal(right_factor)
 
 
 def run_deterministic_checks(
@@ -68,6 +84,8 @@ def run_deterministic_checks(
     quote: str | None = None,
     *,
     quote_source_text: str | None = None,
+    citation: str | None = None,
+    access_tier: str = "unknown",
 ) -> DeterministicChecks:
     claim_numbers = extract_numeric_tokens(claim)
     evidence_numbers = extract_numeric_tokens(evidence or "")
@@ -90,6 +108,10 @@ def run_deterministic_checks(
         )
     if evidence is None:
         warnings.append("No evidence passage was retrieved.")
+    from claim_trellis.checks import CHECK_SET_VERSION, run_registry
+
+    findings = run_registry(claim, evidence, quote, citation, access_tier)
+    warnings.extend(finding.reason for finding in findings if finding.blocking)
     return DeterministicChecks(
         normalized_claim_sha256=text_sha256(claim),
         selected_evidence_sha256=text_sha256(evidence) if evidence else None,
@@ -99,4 +121,6 @@ def run_deterministic_checks(
         evidence_numbers=evidence_numbers,
         unmatched_claim_numbers=unmatched,
         warnings=warnings,
+        findings=findings,
+        check_set_version=CHECK_SET_VERSION,
     )
