@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from claim_trellis.auth import AuthPrincipal, principal
 from claim_trellis.paper_models import (
     CandidateCreate,
+    CandidateDecision,
     ClaimCandidate,
     ClaimSourceLink,
     Contract,
@@ -134,6 +135,29 @@ async def candidate(
     project_id: str, candidate_id: str, identity: Principal, store: Store
 ) -> Contract:
     return await checked(store.get(identity.user_id, project_id, candidate_id, "candidate"))
+
+
+@router.post(
+    "/{project_id}/manuscripts/{manuscript_id}/extract-candidates",
+    response_model=list[ClaimCandidate],
+)
+async def extract_candidates(
+    project_id: str, manuscript_id: str, identity: Principal, store: Store
+) -> list[Contract]:
+    return await checked(store.extract_candidates(identity.user_id, project_id, manuscript_id))
+
+
+@router.post("/{project_id}/candidates/{candidate_id}/decisions", response_model=ClaimCandidate)
+async def decide_candidate(
+    project_id: str,
+    candidate_id: str,
+    request: CandidateDecision,
+    identity: Principal,
+    store: Store,
+) -> ClaimCandidate:
+    return await checked(
+        store.decide_candidate(identity.user_id, project_id, candidate_id, request)
+    )
 
 
 @router.post(

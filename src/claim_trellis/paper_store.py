@@ -21,6 +21,7 @@ from claim_trellis.paper_models import (
     ID_FIELDS,
     RECORD_MODELS,
     CandidateCreate,
+    CandidateDecision,
     ClaimCandidate,
     ClaimSourceLink,
     Contract,
@@ -463,6 +464,79 @@ class PaperWorkflowStore:
         return cast(
             ClaimCandidate, (await self.create_records(owner, project, "candidate", [record]))[0]
         )
+
+    async def extract_candidates(
+        self, owner: str, project: str, manuscript_id: str
+    ) -> list[Contract]:
+        from claim_trellis.paper_extraction import extract_candidates
+
+        manuscript = cast(Manuscript, await self.get(owner, project, manuscript_id, "manuscript"))
+        return await self.create_records(
+            owner, project, "candidate", extract_candidates(manuscript)
+        )
+
+    async def _decision_replay(
+        self, conn: _Connection, owner: str, project: str, event_id: str, fingerprint: str
+    ) -> bool:
+        rows = await conn.execute(
+            "SELECT payload_json FROM paper_workflow_events WHERE event_id=? AND project_id=? AND owner_user_id=?",
+            (event_id, project, owner),
+        )
+        if not rows:
+            return False
+        payload = rows[0]["payload_json"]
+        payload = json.loads(payload) if isinstance(payload, str) else payload
+        if payload["request_sha256"] != fingerprint:
+            raise LifecycleConflict("Decision key already used for different content.")
+        return True
+
+    async def decide_candidate(
+        self, owner: str, project: str, candidate_id: str, request: CandidateDecision
+    ) -> ClaimCandidate:
+        async with self.transaction() as conn:
+            await self._project(conn, owner, project)
+            candidate = cast(
+                ClaimCandidate, await self._record(conn, owner, project, candidate_id, "candidate")
+            )
+            event_id = stable_id(candidate_id, "decision:" + request.idempotency_key)
+            fingerprint = digest(request.model_dump(mode="json"))
+            if await self._decision_replay(conn, owner, project, event_id, fingerprint):
+                return candidate
+            if (
+                candidate.status != "pending"
+                or candidate.state_revision != request.expected_state_revision
+            ):
+                raise LifecycleConflict("Candidate is finalized or the review state is stale.")
+            updated = ClaimCandidate.model_validate(
+                {
+                    **candidate.model_dump(),
+                    "status": "rejected" if request.decision == "reject" else "confirmed",
+                    "confirmed_claim": None
+                    if request.decision == "reject"
+                    else request.confirmed_claim or candidate.original_span,
+                    "state_revision": candidate.state_revision + 1,
+                }
+            )
+            await conn.execute(
+                "UPDATE paper_workflow_records SET record_json=? WHERE record_id=? AND project_id=? AND owner_user_id=? AND kind='candidate'",
+                (updated.model_dump(mode="json"), candidate_id, project, owner),
+            )
+            await self._event(
+                conn,
+                owner,
+                project,
+                "candidate." + updated.status,
+                {
+                    "request_sha256": fingerprint,
+                    "request": request.model_dump(mode="json"),
+                    "original_span": candidate.original_span,
+                    "confirmed_claim": updated.confirmed_claim,
+                    "state_revision": updated.state_revision,
+                },
+                candidate_id,
+                event_id,
+            )
+            return updated
 
     async def create_reference(
         self, owner: str, project: str, manuscript_id: str, request: ReferenceCreate

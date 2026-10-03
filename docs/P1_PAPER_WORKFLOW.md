@@ -42,11 +42,47 @@ Automated tests exercise all six contracts, both database adapters, owner/projec
 manuscript isolation, simultaneous creation, payload conflicts, hash/span grounding,
 transaction rollback, authentication and the existing ClaimAudit suite.
 
-## P1.2 — Exact-span extraction and human decisions (next)
+## P1.2 — Exact-span extraction and human decisions
 
 Only citation-bearing sentences and conservative original clause spans, followed by
 human Confirm/Edit/Reject. Never generate or insert a missing subject automatically.
 Acceptance requires Atomicity, Faithfulness and Necessary Context checks.
+
+POST `/{project}/manuscripts/{manuscript}/extract-candidates` under `/api/v1/projects`
+reuses `extract_citation_sentences()`, excludes an explicit References/Bibliography
+section, and proposes top-level semicolon/obvious predicate splits. Unknown conjunctions
+stay intact; noun lists, parentheses and double-quoted text are not split. Terminal
+parenthetical citations are removed only by narrowing the span. Narrative citations
+such as `Smith (2024)` stay intact, since removing them could remove the subject.
+Candidates are bounded to 2,000 per extraction; overflow fails before any record is saved.
+
+For `Model A improves accuracy and reduces inference time [12].`, the second suggestion
+is **`reduces inference time`**, not `Model A reduces inference time`: the latter is not
+a contiguous exact span. A human may Edit it; the original span remains immutable.
+Extraction is a heuristic suggestion, not a scientific atomicity or citation-scope result.
+
+POST `/{project}/candidates/{candidate}/decisions` requires `decision` (confirm/edit/reject),
+`expected_state_revision`, `idempotency_key`, nonblank `reviewer` and `notes`. Confirm
+copies the original span; Edit requires `confirmed_claim`; Reject stores no confirmed
+claim. Confirm/Edit require `rubric` with `atomic`, `faithful`, `necessary_context` all
+true. These are explicit human attestations, not automated correctness scores.
+Only a pending candidate can be decided. Stale/concurrent decisions return 409. Replaying
+the same decision returns its stored state and no duplicate event. Re-extraction does
+not reset any human decisions. The event retains the rubric, both text fields and revision.
+
+### Manual P1.2 acceptance
+
+1. Create the example manuscript above and run `extract-candidates` twice: stable IDs,
+   exact original spans and only one creation event per candidate.
+2. Edit the second candidate to `Model A reduces inference time`, with all rubric checks.
+   Verify both texts in the response and project events. Re-extract: the edit survives.
+3. Try confirming without the rubric or using a stale revision: verify 422/409.
+4. Reject another candidate; verify no confirmed claim and no provider/audit activity.
+5. Review the original sentence yourself for citation scope, atomicity and context.
+
+Automated checks include Unicode offsets, duplicate sentences, citation styles, noun
+lists/quotes/parentheses, rubric failures, edit/reject/replay, owner isolation and racing
+human decisions on both databases. The browser review UI is intentionally not expanded.
 
 ## P1.3 — Bibliography/source identity mapping (next)
 

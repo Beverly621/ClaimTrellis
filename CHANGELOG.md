@@ -4,6 +4,10 @@ All notable changes will be documented here.
 
 ## 0.1.0 - Unreleased
 
+- P1.2: deterministic citation-bearing sentence / conservative exact-span suggestions
+  and human Confirm/Edit/Reject with a three-part rubric, original-span preservation,
+  stale-state protection, idempotent decisions and append-only review events.
+
 - P1.1 backend contracts: owner-scoped projects, immutable manuscripts, exact-span
   candidates/references, pending source links, reserved existing-audit links, stable
   idempotent creation and transactional append-only events on SQLite/PostgreSQL.

@@ -123,6 +123,35 @@ class ReferenceCreate(CreateRequest):
     doi: str | None = Field(default=None, max_length=500)
 
 
+class ClaimRubric(Contract):
+    atomic: bool
+    faithful: bool
+    necessary_context: bool
+
+
+class CandidateDecision(CreateRequest):
+    decision: Literal["confirm", "edit", "reject"]
+    expected_state_revision: int = Field(ge=0)
+    reviewer: str = Field(min_length=1, max_length=200)
+    notes: str = Field(min_length=1, max_length=4000)
+    rubric: ClaimRubric | None = None
+    confirmed_claim: str | None = Field(default=None, min_length=3, max_length=20_000)
+
+    @model_validator(mode="after")
+    def human_gate(self) -> CandidateDecision:
+        if (self.decision == "edit") != (self.confirmed_claim is not None):
+            raise ValueError("Only Edit supplies a distinct human-confirmed claim.")
+        if self.confirmed_claim is not None and not self.confirmed_claim.strip():
+            raise ValueError("A confirmed claim cannot be blank.")
+        if self.decision != "reject" and (
+            self.rubric is None or not all(self.rubric.model_dump().values())
+        ):
+            raise ValueError("Confirm/Edit require all three human rubric checks.")
+        if not self.reviewer.strip() or not self.notes.strip():
+            raise ValueError("Reviewer and notes cannot be blank.")
+        return self
+
+
 class ReferenceEntry(WorkflowRecord):
     reference_id: TextID
     project_id: TextID
