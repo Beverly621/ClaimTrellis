@@ -58,6 +58,11 @@ Read [the trust specification](docs/TRUST_SPEC.md) before deploying the software
 
 ## Quick start
 
+An experimental, backend-only Paper Workflow contract is available under
+`/api/v1/projects`. P1.1 adds owner-scoped project/manuscript records; it does not
+perform whole-paper audits. Each P1 stage requires separate human acceptance.
+See [the stage boundaries](docs/P1_PAPER_WORKFLOW.md) and [retention](docs/PRIVACY.md).
+
 Requirements: Python 3.11 or newer.
 
 ```bash

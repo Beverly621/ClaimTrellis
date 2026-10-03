@@ -1,6 +1,6 @@
 # ClaimTrellis v0.1 decisions and release gates
 
-**Current status: ClaimTrellis v0.1 — Core Audit Fidelity P0 / Pre-Release**
+**Current status: ClaimTrellis v0.1 — P0 Accepted / P1.1–P1.3 Authorized / Pre-Release**
 
 The v0.1 product direction is frozen. ClaimTrellis is an independent project and its only
 primary brand. TypeSafe Jev is the first structured judgment provider and part of the
@@ -9,7 +9,7 @@ technical lineage, not the product identity.
 ## Feature-freeze policy
 
 The product features, external API, data model, CLI commands, provider architecture, and
-six-label judgment system are frozen except for the explicitly authorized P0 work below. The owner has
+six-label judgment system are frozen except for the explicitly authorized work below. The owner has
 confirmed the repository is now public. Do not publish
 to PyPI, create a formal release, or perform promotional activity. New features and
 nonessential dependency upgrades are paused.
@@ -58,8 +58,8 @@ multi-passage evidence sets; human-controlled evidence selection; separate scien
 alignment questions; no embeddings; no generated explanations; and no automatic final
 acceptance. Explanations are assembled by policy code.
 
-Only P0 is authorized for implementation. P1 manuscript workflows and hybrid retrieval,
-and P2 domain profiles, statistical validation, and cross-claim reasoning remain future
+P0 was accepted by the owner on 2026-10-03 and PR #20 is merged. Hybrid retrieval,
+P2 domain profiles, statistical validation, and cross-claim reasoning remain future
 work. Do not add formats, OCR, scraping, chat, writing tools, paper scores, new providers,
 billing, collaboration, account features, or a broad UI redesign. Repository visibility,
 deployment configuration, brand, license, and release strategy are unchanged. No PyPI,
@@ -68,8 +68,23 @@ See [the core capability roadmap](ROADMAP.md).
 
 The owner confirmed on 2026-10-03 that all P0 implementation, tests, documentation and
 follow-up fixes must stay in PR #20 (`codex/core-capability-roadmap`); do not open a second
-P0 PR. Only P0 is in scope. The implementation contract is
+P0 PR. This historical P0 scope ended with acceptance. The implementation contract is
 [Core Audit Fidelity v2](P0_CORE_AUDIT_FIDELITY.md).
+
+## Authorized P1.1–P1.3: backend Paper Workflow prototype
+
+The owner authorized three separate PRs starting with #21 on 2026-10-03:
+contracts/persistence, exact-span candidate extraction/human decisions, and bibliography/
+uploaded-source mapping/human identity confirmation. PRs are stacked in that order and
+must remain open for human acceptance; no merge is authorized. P0's judgment core, six
+labels, CLI and provider architecture remain unchanged. No dependency upgrades are needed.
+
+P1.4 audit orchestration/quota redesign, P1.5 Matrix, P1.6 retrieval experiments and P1.7
+full-workflow acceptance are not in scope. These first three stages neither call Jev nor
+start audits. Workflow manuscript text (and, in P1.3, source text) is retained separately
+from the existing minimal audit snapshot; operators must review [privacy](PRIVACY.md).
+No release, visibility change, production migration/deployment or promotion is authorized.
+See [the explicit stage contract](P1_PAPER_WORKFLOW.md).
 
 ## Authorized v0.1 exception: UI and proposal revision loop
 
