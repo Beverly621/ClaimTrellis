@@ -51,12 +51,12 @@ automatically merged across different identities. Retention and deletion tools a
 implemented. Database paths, uploaded documents, caches and local reports are ignored
 by Git.
 
-## Paper Workflow retention (P1.1–P1.3)
+## Paper Workflow retention
 
-The opt-in `/api/v1/projects` backend stores normalized manuscript text, its complete
+The `/api/v1/projects` backend stores normalized manuscript text, its complete
 grounded blocks, original candidate spans, human-confirmed claim text, bibliography
 excerpts, links and append-only workflow events (including reviewer aliases, notes and
-rubric attestations). P1.3 also retains the full normalized text and blocks of uploaded
+rubric attestations). It also retains the full normalized text and blocks of uploaded
 SourceDocuments, supplied metadata, parser version and text hash. Raw uploaded file bytes
 are not stored as application records. This is a separate collection, not a change to ClaimAudit's minimum
 snapshot retention above. Text persists to support repeatable exact-span extraction.
@@ -64,13 +64,13 @@ Owners are derived from verified identity, never from request JSON; every child 
 checks both owner and project. PostgreSQL tables have RLS enabled and no grants for
 `anon` or `authenticated`; server-side owner scoping remains mandatory.
 
-No Paper Workflow request in P1.1–P1.3 sends data to Jev or creates an audit. No retention
-expiry, deletion API or browser workflow UI is implemented by these stages. Treat project
+Claim extraction, reference parsing, source upload and identity decisions do not send
+data to Jev or create an audit. No retention expiry or deletion API is implemented. Treat project
 text and events as sensitive retained records and do not upload confidential material.
 Supplied source metadata and parsed bibliography metadata are unverified descriptions,
 not proof of paper identity. Human identity decisions and text hashes are stored separately.
 
-## Paper orchestration and browser projection (P1.4–P1.5)
+## Paper orchestration and browser projection
 
 An explicitly executed, human-confirmed claim/source pair creates an ordinary ClaimAudit
 under the same owner. Its selected evidence is sent to the configured provider only when
@@ -89,14 +89,14 @@ view and pending selections on logout/account change and ignores stale responses
 not put project text, audit data or reviewer drafts into browser local storage. Operators
 must approve a retention/deletion policy before confidential real-world use.
 
-## Offline retrieval and acceptance (P1.6–P1.7)
+## Offline retrieval and acceptance
 
 Retrieval experiments use a locally downloaded, pinned embedding model, CPU and an
 in-memory exact index. They never send paper text to an embedding API or replace the
 production retriever. The first model download contacts the public model registry;
 do not attach private Hub credentials unnecessarily. Source snapshots, queries, qrels,
 embeddings and per-query results may contain manuscript/source text. Keep private data
-and local output in Git-ignored directories, with operator-controlled access. Supplied
+and local output outside the Git repository, with operator-controlled access. Supplied
 real-paper labels remain human annotations, not model-created gold data.
 
 Browser/database acceptance uses invented repository-licensed fixtures and explicit
@@ -105,9 +105,9 @@ ordinary Guest and two invented ClaimAudits under normal hosted retention and qu
 it does not read the owner's browser session or expose the server key. It logs out that
 throwaway session but does not delete its stored records or any real user data. Sanitized
 local reports contain model versions and usage, never tokens/keys/configuration files.
-Live smoke and owner real-paper testing are integration checks, not approval for
-sensitive data or accuracy validation. Hosted Provider remains enabled by the owner's
-latest decision; this PR changes no hosted configuration or quotas.
+Live smoke and real-paper workflow testing are integration checks, not approval for
+sensitive data or accuracy validation. Hosted provider access is an operator-controlled
+setting subject to quotas; the server key is never exposed to the browser.
 
 ## Sensitive data
 

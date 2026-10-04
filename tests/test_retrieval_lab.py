@@ -1,10 +1,12 @@
 import hashlib
 import json
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
 
+from experiments.retrieval import run
 from experiments.retrieval.dataset import Dataset
 from experiments.retrieval.evaluate import evaluate, metrics
 from experiments.retrieval.fixtures import generate
@@ -20,7 +22,12 @@ FIXTURE = Path(__file__).resolve().parents[1] / "benchmarks/retrieval/synthetic"
 
 
 class FakeEncoder:
-    provenance = {"embedding_model": "test-only", "embedding_model_revision": "fixture"}
+    provenance = {
+        "embedding_model": "test-only",
+        "embedding_model_revision": "fixture",
+        "external_api_calls": 0,
+        "truncated_inputs": 0,
+    }
 
     def encode(self, texts):
         return [[float(len(t)), float(sum(map(ord, t))), 1.0] for t in texts]
@@ -46,28 +53,60 @@ def test_synthetic_requires_explicit_opt_in():
         Dataset(FIXTURE)
 
 
-def test_published_synthetic_reports_match_frozen_data_and_metrics():
+@pytest.mark.parametrize("split", ["dev", "test"])
+def test_offline_runner_records_frozen_data_metrics_and_provenance(tmp_path, monkeypatch, split):
     dataset = Dataset(FIXTURE, allow_synthetic=True)
-    for split in ("dev", "test"):
-        report = json.loads((FIXTURE.parent / "reports" / f"synthetic-{split}-v1.json").read_text())
-        assert report["dataset"] == dataset.manifest.model_dump()
-        assert report["split_hash"] == dataset.split_hash
-        assert report["working_tree_dirty"] is False
-        assert report["commit_sha"] == "b1b70038bad8dbfd0d7198837d50f5cd451555d5"
-        assert report["embedding"]["embedding_model_revision"] == (
-            "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
-        )
-        assert report["embedding"]["external_api_calls"] == 0
-        assert report["adoption"].startswith("NOT AUTHORIZED")
-        assert [r["baseline"] for r in report["results"]] == [
-            "lexical-evidence-v2",
-            "dense-experimental",
-            "hybrid-rrf-experimental",
-        ]
-        for result in report["results"]:
-            assert result["split"] == split and result["query_count"] == 7
-            for row in result["queries"]:
-                assert row["metrics"] == metrics(row["ranking"], dataset.qrels[row["query_id"]])
+    output = tmp_path / "local-run"
+    monkeypatch.setattr(run, "SentenceEncoder", lambda model, revision: FakeEncoder())
+    monkeypatch.setattr(run.importlib.metadata, "version", lambda package: "test-only")
+    monkeypatch.setattr(
+        run.subprocess,
+        "check_output",
+        lambda args, **kwargs: "a" * 40 if args[1] == "rev-parse" else "",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "offline-run",
+            str(FIXTURE),
+            "--allow-synthetic",
+            "--split",
+            split,
+            "--revision",
+            "fixture",
+            "--output",
+            str(output),
+        ],
+    )
+    run.main()
+    report = json.loads((output / "run.json").read_text())
+    assert report["dataset"] == dataset.manifest.model_dump()
+    assert report["split_hash"] == dataset.split_hash
+    assert report["working_tree_dirty"] is False
+    assert report["commit_sha"] == "a" * 40
+    assert report["embedding"]["embedding_model_revision"] == "fixture"
+    assert report["embedding"]["external_api_calls"] == 0
+    assert report["top_k"] == 10 and report["rrf_k"] == 60
+    assert report["resource"]["logical_index_bytes"] > 0
+    assert report["resource"]["index_disk_bytes"] == 0
+    assert report["adoption"].startswith("NOT AUTHORIZED")
+    assert [r["baseline"] for r in report["results"]] == [
+        "lexical-evidence-v2",
+        "dense-experimental",
+        "hybrid-rrf-experimental",
+    ]
+    for result in report["results"]:
+        assert result["split"] == split and result["query_count"] == 7
+        for row in result["queries"]:
+            assert row["metrics"] == metrics(row["ranking"], dataset.qrels[row["query_id"]])
+    narrative = (output / "retrieval-ablation-report.md").read_text()
+    assert "not Jev judgment accuracy" in narrative
+    assert "No production adoption" in narrative
+    before = (output / "run.json").read_bytes()
+    with pytest.raises(SystemExit):
+        run.main()
+    assert (output / "run.json").read_bytes() == before
 
 
 @pytest.mark.parametrize("baseline", ["lexical", "dense", "hybrid"])

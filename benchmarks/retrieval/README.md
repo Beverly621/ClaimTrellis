@@ -10,4 +10,5 @@ See [the offline lab contract](../../experiments/retrieval/README.md) for formal
 human annotation, canonical work identities, source licensing, schema and evaluation.
 Real-paper datasets must be independently annotated/adjudicated before use as a
 formal benchmark. Do not upload private manuscripts or licensed publisher full text.
-Local runs live in ignored `benchmarks/results/`.
+Keep local runs outside the repository. The ignored `benchmarks/results/` path is a
+defense-in-depth safeguard, not the location for private research records.

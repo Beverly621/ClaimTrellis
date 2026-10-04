@@ -21,11 +21,14 @@
 | Model/provider outage | bounded retries, explicit service-failure state, no silent fallback verdict |
 | Benchmark contamination | source-level split, frozen hashes, private held-out labels |
 | Reviewer history tampering | append-only events and content hashes |
-| Cross-user data exposure | local-only initial profile; authentication required before team deployment |
-| Cost exhaustion | request limits, passage limits, usage logging, optional per-project budget |
+| Cross-user data exposure | verified Supabase identity, owner-scoped child lookups, RLS and restricted Data API grants in hosted PostgreSQL; local SQLite is single-user only |
+| Cost exhaustion | bounded provider requests, transactional user/IP/run/concurrency quota, hashed IPs and fail-closed shared-provider configuration |
+| Public API explorer | hosted docs/OpenAPI disabled by default; this is not authentication or a replacement for owner scoping |
 
-## Out of scope for the local alpha
+## Remaining deployment safeguards
 
-Multi-tenant isolation, organization SSO, managed encryption keys, malware scanning,
-distributed queues, and tamper-evident external logs are required before hosted service
-deployment and are not claimed by the local alpha.
+Organization SSO, managed encryption keys, malware scanning, distributed queues and
+tamper-evident external logs are not provided by the application. Operators must assess
+these, abuse monitoring, signup controls and retention/deletion policies for their use
+case before broad or sensitive deployments. Engineering owner-isolation tests do not
+constitute an independent security audit.

@@ -8,15 +8,15 @@ python -m pip install -e '.[dev,retrieval-lab]'
 python -m experiments.retrieval.run benchmarks/retrieval/synthetic \
   --allow-synthetic --split dev \
   --revision 1110a243fdf4706b3f48f1d95db1a4f5529b4d41 \
-  --output benchmarks/results/dev-run-001
+  --output ../claim-trellis-work/retrieval/dev-run-001
 ```
 
 Use a new output directory for every run. A test run changes `--split test`; never
 tune on held-out labels. `run.json` records hashes, pinned revision, package/runtime
 versions, code SHA/dirty status, exact index settings, truncation, top-k and RRF k.
 `retrieval-ablation-report.md` records gains/regressions, costs and adoption gates.
-The [checked-in synthetic ablation](../../docs/retrieval-ablation-report.md) links the
-two complete clean-SHA run records. No real-paper annotations are inferred from them.
+Run records and per-query rankings are local experiment outputs, not repository
+documentation. No real-paper annotations are inferred from synthetic runs.
 
 ## Dataset contract
 
@@ -47,7 +47,7 @@ and hard-negative IDs without explicit zero-grade qrels.
 `synthetic` is deliberately **not** human-confirmed. It requires `--allow-synthetic`,
 contains seven tagged hard-negative slices, and validates mechanics only. Missing
 slices are null, not passing. Hard-negative retrieval is not a false-support judgment.
-Keep private papers, tokens, embeddings and individual rankings under ignored paths;
+Keep private papers, tokens, embeddings and individual rankings outside the repository;
 publish only licensed data or sanitized aggregates with owner approval.
 
 ## Sources and adoption

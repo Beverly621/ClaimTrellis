@@ -56,9 +56,10 @@ def snapshot() -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    target = ROOT / "docs/P1_ACCEPTANCE_FREEZE.json"
+    target = ROOT / "tests/fixtures/contracts/workflow-freeze.json"
     if target.exists():
         raise ValueError(
             "Acceptance freeze already exists; changes require explicit blocker review."
         )
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(snapshot(), indent=2) + "\n")
