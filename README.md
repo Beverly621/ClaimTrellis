@@ -58,12 +58,16 @@ Read [the trust specification](docs/TRUST_SPEC.md) before deploying the software
 
 ## Quick start
 
-An experimental, backend-only Paper Workflow contract is available under
-`/api/v1/projects`. P1.1 adds owner-scoped project/manuscript records, P1.2 proposes
-exact-span claims for human decisions, and P1.3 maps bibliography entries to uploaded
-sources with human identity confirmation. It does not perform whole-paper audits.
-Each P1 stage requires separate human acceptance; the browser workflow UI is deferred.
+Paper Workflow is available at `/projects` and `/api/v1/projects`: owner-scoped
+manuscripts, exact-span claim confirmation, uploaded sources and human identity mapping,
+explicit per-source audit orchestration, a Review Queue and Evidence Matrix. Each cell
+remains an ordinary ClaimAudit with human final judgment, never a paper verdict/score.
 See [the stage boundaries](docs/P1_PAPER_WORKFLOW.md) and [retention](docs/PRIVACY.md).
+
+The [offline retrieval lab](experiments/retrieval/README.md) compares production lexical
+v2 with experimental dense/RRF on identical source-grounded pools. It is not a production
+backend. Synthetic regression results and live integration smoke are not scientific
+accuracy validation, automatic peer review, paper-quality scoring or autonomous fact checking.
 
 Requirements: Python 3.11 or newer.
 
@@ -71,7 +75,7 @@ Requirements: Python 3.11 or newer.
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
-pytest
+pytest -m 'not browser'
 claim-trellis serve
 ```
 
@@ -87,6 +91,11 @@ claim-trellis serve
 
 Do not place the key in source files. Local `.env*`, private uploads, databases, caches,
 and evaluation outputs are ignored by Git.
+
+For the full engineering acceptance suite, install `.[dev,e2e]`, run
+`python -m playwright install chromium`, and supply a disposable PostgreSQL database
+named `claim_trellis_test` as `TEST_DATABASE_URL`. See
+[P1 acceptance](docs/P1_ACCEPTANCE.md) for migrations, browser tests and opt-in live smoke.
 
 ## CLI examples
 

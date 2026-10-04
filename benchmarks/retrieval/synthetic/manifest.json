@@ -1,0 +1,17 @@
+{
+  "schema_version": "claim-trellis-retrieval-v1",
+  "dataset_version": "synthetic-hard-negatives-v1",
+  "annotation_status": "synthetic-engineering",
+  "qrels_reviewers": [],
+  "adjudicator": null,
+  "retrieval_scope": "within-identified-source",
+  "parser_version": "structured-document-v2",
+  "retrieval_version": "lexical-evidence-v2",
+  "files": {
+    "sources.jsonl": "d869f0449daa42a62e7219e36764146c9f28a157fe0e639b1e5e1480f3314913",
+    "corpus.jsonl": "30aff018acfbc135f525d292134f83acba49c7aeb919ef48e965cfd97d93a46b",
+    "queries.jsonl": "57cf34b8a8df871f468d0eecb53dd4390f4ef61f47a4e8381b54572d60634e37",
+    "qrels.tsv": "ed5c57c1d30e6ebf290a662d11eb2a1863788d1748760278a2131695442ab683"
+  },
+  "notes": "Invented engineering fixtures under the existing repository license, not human-confirmed atomic claims or a held-out scientific benchmark. No adoption decision may rely on these scores."
+}

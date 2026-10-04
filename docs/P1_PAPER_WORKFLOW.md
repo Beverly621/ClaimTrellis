@@ -1,7 +1,8 @@
 # Paper Workflow: stage contracts and human acceptance
 
-P0 and P1.1–P1.3 were accepted on 2026-10-03 (PRs #20–#23 merged). P1.4–P1.5 are
-authorized as one PR held for human acceptance. This is not complete P1: P1.6/P1.7 are deferred.
+P0 and P1.1–P1.3 were accepted on 2026-10-03 (PRs #20–#23 merged). P1.4–P1.5 were
+merged as PR #24; the owner subsequently reported human real-paper/live-Jev acceptance.
+P1.6/P1.7 are now authorized in one new PR, with merge/deployment after green checks.
 No new `PaperVerdict`, paper score, provider, dependency or CLI command is introduced.
 
 ## P1.1 — Contracts and persistence
@@ -154,13 +155,13 @@ manual mapping, source formats, human gates, stale/concurrent decisions, replay,
 serialized-default compatibility and API prototype flows. These are software contract
 tests with synthetic data, not real-literature validation or a held-out accuracy benchmark.
 
-## Deferred
+## Separate scientific and adoption gates
 
-P1.6 dense/hybrid/RRF/offline benchmark and P1.7 full end-to-end/live-Jev/migration
-rehearsal require separate authorization.
-No performance conclusion is justified by the workflow contract tests.
+P1.6/P1.7 are covered below. Formal independently annotated retrieval data, production
+dense adoption and P2 are separate owner gates. No scientific performance conclusion
+is justified by workflow tests, synthetic retrieval scores or live integration smoke.
 
-## P1.4 — Ordinary audit orchestration (active contract)
+## P1.4 — Ordinary audit orchestration (accepted contract)
 
 Run creation plans only. Each execute request processes one persisted item, by reusing
 the existing P0 `run_audit()` and ordinary ClaimAudit persistence. All claims/mappings
@@ -180,7 +181,7 @@ with no new cost-bearing numeric defaults. Preflight is an estimate, not a reser
 each real model call atomically reserves in the database. Existing hosted IP protections
 remain enforced. Deterministic-only execution is an explicit mode, not a hidden fallback.
 
-## P1.5 — Matrix and browser workflow (active contract)
+## P1.5 — Matrix and browser workflow (accepted contract)
 
 The Matrix is an owner/project-scoped projection, not a stored judgment. Each mapping
 has its own stable row and ordinary audit link; workflow states remain separate from raw
@@ -274,7 +275,53 @@ Before merging, the owner should repeat on a local/disposable database:
 4. Simulate two browsers' stale decision, logout and account switch. Confirm state clears,
    stale decisions conflict, and no old-owner text or pending request enters the new view.
 5. Approve cost-bearing quota values and a separate production backup/migration plan
-   only if/when deployment is authorized. P1.6/P1.7 stay deferred.
+   only if/when deployment is authorized. The subsequent P1.6/P1.7 authorization does
+   not authorize additional production migrations.
+
+## P1.6 — Independent retrieval lab
+
+`experiments/retrieval/` and `benchmarks/retrieval/` are outside production. Frozen
+corpus/query/qrels/manifest files plus licensed normalized source snapshots validate
+exact production-v2 spans, unique IDs/hashes, canonical paper identities and source-disjoint
+dev/test. Formal queries require human atomic-claim confirmation; qrels require two
+independent reviewers/adjudication. No supplied real-paper qrels are assumed to exist.
+Synthetic data requires explicit opt-in and is never promoted to human labels.
+
+Lexical calls the frozen production retriever; CPU dense searches the same identified
+source pool; hybrid sums reciprocal ranks, never raw score spaces. Model/revision,
+distance/index settings, top-k/RRF-k, data/split hashes, code SHA/dirty state, parser/chunk/
+retrieval versions, package/runtime versions, truncation, resource usage and local cost
+limitations are recorded. Report Recall@1/5/10, MRR@10, nDCG@10 and seven hard-negative
+slices; missing slices are null. Dense dependencies are `retrieval-lab` extras only.
+See [the lab](../experiments/retrieval/README.md) and the ablation report.
+
+Completing this lab is not an adoption decision. Production stays `lexical-evidence-v2`.
+Formal held-out labels, gain/regression/cost review, explicit owner approval and a
+separate `retrieval-v3 adoption PR` are mandatory before adopting dense retrieval.
+
+## P1.7 — Acceptance, not new algorithms
+
+Frozen versions and code/question hashes are in `P1_ACCEPTANCE_FREEZE.json`; tests reject
+changes unless a blocker receives explicit review. Legal invented numeric/author-year
+manuscripts exercise actual browser/HTTP/PostgreSQL flows through human Confirm/Edit/
+Reject, source identity, separate audits, Matrix, evidence correction, revision and final
+decision. Test reviewer actions are simulated, not statements that a human reviewed the
+invented scientific claims. Separate-account access is denied and logout/session changes
+clear content; actual Supabase and Jev use explicit mocks in browser tests.
+
+The complete contract suite covers ambiguous/unmapped/wrong sources, multiple sources,
+timeouts/errors/invalid answers, quota exhaustion, interruption recovery, stale decisions
+and concurrency. The trace checker verifies every Matrix join, manuscript/reference
+exact span, edited claim, identity reviewer, source/candidate/evidence hash, checks, raw
+Jev/model/questions, policy rationale, proposal history and final human action. A broken
+join fails the gate. Fresh and existing-0003 disposable databases rehearse through **0005**,
+plus pre-upgrade backup restore, idempotency, RLS and owner isolation. No production
+migration occurs as a result of this stage.
+
+Opt-in live smoke creates two invented hosted audits to verify real authentication,
+Jev v3 answer validation, requested/resolved model, usage and persistence; paid timeout
+fault injection is not performed. It cannot accept proposals or claim scientific accuracy.
+See [the acceptance record and complete test matrix](P1_ACCEPTANCE.md).
 
 ## Conceptual references (no code or dataset imported)
 

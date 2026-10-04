@@ -46,6 +46,8 @@ dev = [
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
 ]
+retrieval-lab = ["sentence-transformers>=3.4,<6"]
+e2e = ["playwright>=1.51,<2"]
 
 [project.scripts]
 claim-trellis = "claim_trellis.cli:app"
@@ -63,6 +65,8 @@ packages = ["src/claim_trellis"]
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers --disable-warnings"
 testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["browser: automated Chromium acceptance on a disposable local service"]
 
 [tool.ruff]
 line-length = 100
@@ -78,4 +82,8 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["claim_trellis"]
+packages = ["claim_trellis", "experiments"]
+
+[[tool.mypy.overrides]]
+module = ["sentence_transformers.*"]
+follow_imports = "skip"

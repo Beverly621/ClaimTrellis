@@ -643,14 +643,14 @@ function renderAuthState() {
   state.authReady = guest || auth.kind === "permanent";
   const primary = auth.kind === "permanent" ? "Open workspace"
     : auth.kind === "error" ? "Account issue" : "Continue as guest";
-  $("#hero-primary").innerHTML = `${auth.kind === "signed_out" ? '<span class="cta-icon" aria-hidden="true">🕶</span> ' : ""}${primary} <span>↗</span>`;
+  $("#hero-primary").innerHTML = `${auth.kind === "signed_out" ? '<span class="cta-icon" aria-hidden="true">🕶</span> ' : ""}${primary}`;
   $("#header-action").classList.toggle("account-entry", auth.kind === "permanent");
-  $("#header-action").innerHTML = auth.kind === "permanent" ? accountLabel : `${primary} <span>↗</span>`;
+  $("#header-action").innerHTML = auth.kind === "permanent" ? accountLabel : primary;
   const secondary = $("#hero-secondary");
   secondary.hidden = !accountAvailable;
   secondary.innerHTML = auth.kind === "permanent" ? accountLabel
-    : guest ? "Save workspace ↗" : '<span class="cta-icon" aria-hidden="true">✉</span> Sign in ↗';
-  if (auth.kind === "error") secondary.innerHTML = "Review account issue ↗";
+    : guest ? "Save workspace" : '<span class="cta-icon" aria-hidden="true">📮</span> Sign in';
+  if (auth.kind === "error") secondary.innerHTML = "Review account issue";
   $("#workspace-identity").hidden = !state.authReady;
   if (auth.kind === "permanent") {
     $("#workspace-identity").innerHTML = "<strong>Account workspace</strong> · Your audit history is linked to this account.";

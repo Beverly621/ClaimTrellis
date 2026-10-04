@@ -1,6 +1,6 @@
 # P1.4 / P1.5: owner-operated real-paper acceptance
 
-Status: reviewed software, awaiting human real-paper/Jev acceptance at P1.5. The owner
+Status: owner reported real-paper/Jev acceptance complete at P1.5 on 2026-10-03. The owner
 separately authorized PR #24 merge/deployment after green checks; merge is not acceptance.
 This is not P1.6 retrieval research, P1.7 full E2E/rehearsal, scientific validation or
 a held-out accuracy benchmark. No false-support-rate claim follows from these tests.
@@ -60,8 +60,10 @@ screenshot. Include whether the problem is parsing/retrieval, source identity, m
 judgment, policy, human review, persistence or UI. Never send API keys, bearer tokens,
 database URLs, browser local-storage/session dumps or unredacted network headers.
 
-When finished, explicitly request **disable Hosted Provider and redeploy**. That prevents
+Optional after testing: explicitly request **disable Hosted Provider and redeploy**. That prevents
 new hosted Jev evaluations; it does not cancel an already-started request, erase stored
 audits or delete keys/data. Review, history and deterministic-only workflows remain.
 After feedback-driven repairs and explicit human acceptance, the owner decides whether
-to authorize P1.6/P1.7; this checklist does not auto-advance or auto-merge.
+to authorize P1.6/P1.7; this checklist does not auto-advance or auto-merge. The owner has
+now provided that separate authorization and explicitly instructed that Hosted Provider
+**remain enabled**. No enable flag, key, IP secret or quota is deleted by the P1.6/P1.7 PR.

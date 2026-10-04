@@ -2747,7 +2747,8 @@ body { background: var(--bg); color: var(--text); }
   transition: background .18s ease, border-color .18s ease, color .18s ease;
 }
 .account-entry svg { width: 18px; height: 18px; flex: none; color: var(--accent); }
-.hero .account-entry { min-height: 48px; padding: 14px 22px; }
+.hero .actions > button { width: 240px; max-width: 100%; min-height: 48px; padding: 13px 20px; justify-content: center; gap: 12px; border-radius: 999px; font: 600 12px/1.2 var(--sans); }
+#hero-secondary .cta-icon { filter: none; }
 .account-entry:hover { border-color: var(--accent); background: var(--surface); color: var(--accent); }
 .account-entry:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) {

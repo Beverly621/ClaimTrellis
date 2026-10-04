@@ -1,7 +1,8 @@
 # Core Capability Roadmap
 
-The owner accepted P0 and P1.1–P1.3 and authorized P1.4–P1.5 on 2026-10-03.
-P1.6, P1.7 and P2 require separate authorization. The product remains an auditable
+The owner accepted the real-paper/live-Jev P1.4–P1.5 workflow and authorized P1.6–P1.7
+in one PR on 2026-10-03, including merge/deployment after green checks. P2 and production
+dense retrieval require separate authorization. The product remains an auditable
 claim-to-source verification system with human final judgment.
 
 ## P0 — Core Audit Fidelity v2 (accepted 2026-10-03)
@@ -28,10 +29,11 @@ Preserve raw normalized text and compatible legacy fields.
   evidence-set hashes. Prepare offline P0 regression cases and source-grounded literature
   benchmarks; do not claim measured Jev accuracy without a formal held-out evaluation.
 
-## P1 — Paper Workflow (P1.4–P1.5 authorized / active)
+## P1 — Paper Workflow (P1.6–P1.7 verification in progress)
 
 The first three backend stages were accepted and merged as PRs #21, #22 and #23.
-P1.4–P1.5 use one PR and stop at human acceptance; no automatic merge is authorized.
+P1.4–P1.5 were merged as PR #24 and the owner reported human real-paper acceptance.
+P1.6–P1.7 use one new PR; merge/deployment are authorized only after green checks.
 See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
 
 | Stage | Boundary | Status |
@@ -39,12 +41,12 @@ See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
 | P1.1 | Contracts and SQLite/PostgreSQL persistence | Accepted 2026-10-03 |
 | P1.2 | Exact-span extraction and human Confirm/Edit/Reject | Accepted 2026-10-03 |
 | P1.3 | Bibliography, uploaded sources, human mapping identity | Accepted 2026-10-03 |
-| P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Authorized / Active |
-| P1.5 | Review Queue / Paper Evidence Matrix | Authorized / Active |
-| P1.6 | Offline dense/hybrid retrieval experiments and benchmarks | Deferred |
-| P1.7 | Full workflow E2E, live Jev smoke and final acceptance | Deferred |
+| P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Human accepted 2026-10-03 |
+| P1.5 | Review Queue / Paper Evidence Matrix | Human accepted 2026-10-03 |
+| P1.6 | Offline dense/hybrid/RRF lab | Implemented; engineering experiment verification |
+| P1.7 | Full workflow E2E, live Jev smoke and acceptance | Verification in progress |
 
-The full P1 sequence, not the current implementation, includes:
+The P1 implementation includes:
 
 - Manuscript citation-bearing sentences and conservative clause splitting; humans confirm
   atomic claims and citation/source mapping.
@@ -69,5 +71,8 @@ Only after P1 and separate authorization:
 No new formats, OCR, web scraping, chatbot, summaries, writing/rewriting, automatic source
 replacement, paper scores, free-text model explanations, automatic acceptance, new
 providers, billing, collaboration, account expansion, or broad homepage/UI redesign.
-No dependency upgrades unless needed for a defect or security fix. Publication,
-visibility changes, production deployment, and performance claims need separate authority.
+No dependency upgrades unless needed for a defect or security fix; embedding and browser
+dependencies are optional experiment/test extras only. No publication, visibility change,
+formal release or promotion is authorized. The owner authorized this PR's existing Vercel
+production deployment. Scientific performance claims remain blocked by formal annotation
+and held-out evaluation, not unlocked by engineering acceptance.
