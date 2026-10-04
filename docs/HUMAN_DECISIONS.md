@@ -1,6 +1,6 @@
 # ClaimTrellis v0.1 decisions and release gates
 
-**Current status: ClaimTrellis v0.1 — P0/P1.1–P1.3 Accepted / P1.4–P1.5 Active / Pre-Release**
+**Current status: ClaimTrellis v0.1 — P1 Paper Workflow Accepted 2026-10-03 / Feature Frozen / Pre-Release**
 
 The v0.1 product direction is frozen. ClaimTrellis is an independent project and its only
 primary brand. TypeSafe Jev is the first structured judgment provider and part of the
@@ -138,6 +138,31 @@ neither stage is started or accepted by this deployment. The owner should reques
 Hosted Provider be disabled and redeployed after testing; user/IP limits are not a
 site-wide token budget. Functional acceptance and retention/deletion decisions remain
 human gates. See [the manual handoff](P1_MANUAL_ACCEPTANCE.md).
+
+## Authorized P1.6/P1.7 completion and small entry UI change — 2026-10-03
+
+The owner reported that P1.5 manual acceptance and real Jev calls on real papers were
+complete. They authorized P1.6/P1.7 in **one new PR**, green tests, merge and deployment
+to the existing Vercel production website. The owner subsequently cancelled the proposed
+Hosted Provider shutdown/removal: **keep it enabled**, with existing Guest/owner access
+and unchanged quotas. Do not delete enable flags, API keys, IP secrets or database settings.
+
+P1.6 is offline-only: optional experiment dependencies, fixed source-grounded corpus,
+source/work-disjoint splits, lexical/dense/RRF comparison, metrics, provenance and report.
+No production embedding adoption is authorized. Real-paper human-confirmed queries and
+independently adjudicated qrels are not inferred from the existing seed/manual testing;
+synthetic results remain engineering regression. Adoption needs a separate owner-approved
+held-out benchmark and a separate retrieval-v3 adoption PR.
+
+P1.7 freezes algorithms/contracts and verifies full workflow/traceability, real-browser
+flows, two-case live integration and disposable PostgreSQL backup/restore. Live smoke
+uses invented data and remains pending human review; it does not automate final judgment.
+No new production migration, PyPI/formal Release, promotion, brand, license, provider,
+CLI, relation-label or quota change is authorized.
+
+The owner additionally requested a narrow homepage change in the same PR: equal hero
+entry dimensions matching the left entry, no entry arrows, 📮 Sign in icon, and removal
+of the shown hero eyebrow/overline/divider. Login and account behavior remain unchanged.
 
 ## Authorized v0.1 exception: UI and proposal revision loop
 

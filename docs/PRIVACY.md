@@ -89,6 +89,26 @@ view and pending selections on logout/account change and ignores stale responses
 not put project text, audit data or reviewer drafts into browser local storage. Operators
 must approve a retention/deletion policy before confidential real-world use.
 
+## Offline retrieval and acceptance (P1.6–P1.7)
+
+Retrieval experiments use a locally downloaded, pinned embedding model, CPU and an
+in-memory exact index. They never send paper text to an embedding API or replace the
+production retriever. The first model download contacts the public model registry;
+do not attach private Hub credentials unnecessarily. Source snapshots, queries, qrels,
+embeddings and per-query results may contain manuscript/source text. Keep private data
+and local output in Git-ignored directories, with operator-controlled access. Supplied
+real-paper labels remain human annotations, not model-created gold data.
+
+Browser/database acceptance uses invented repository-licensed fixtures and explicit
+Supabase/Jev test doubles against disposable databases. An opt-in live smoke creates one
+ordinary Guest and two invented ClaimAudits under normal hosted retention and quota;
+it does not read the owner's browser session or expose the server key. It logs out that
+throwaway session but does not delete its stored records or any real user data. Sanitized
+local reports contain model versions and usage, never tokens/keys/configuration files.
+Live smoke and owner real-paper testing are integration checks, not approval for
+sensitive data or accuracy validation. Hosted Provider remains enabled by the owner's
+latest decision; this PR changes no hosted configuration or quotas.
+
 ## Sensitive data
 
 Do not process protected health information, personal data, confidential peer-review

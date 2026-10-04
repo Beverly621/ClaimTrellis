@@ -1,0 +1,28 @@
+{
+  "contract_version": "paper-workflow-p1.5-0005",
+  "claim_extraction_version": "citation-exact-span-v1",
+  "reference_parser_version": "bibliography-exact-span-v1",
+  "mapping_version": "p1.3-human-identity-gated",
+  "audit_orchestration_version": "p1.4-0005-fenced-checkpoint-v1",
+  "retrieval_production_version": "lexical-evidence-v2",
+  "parser_version": "structured-document-v2",
+  "check_set_version": "deterministic-v2",
+  "question_set_version": "claim-source-en-v3",
+  "revision_question_set_version": "claim-source-revision-en-v3",
+  "questions_sha256": "6850800aaeb3042a8256ac2dde283b1a5b86afce4576aafd107b829f177010e8",
+  "policy_version": "fail-closed-v2",
+  "requested_model": "jev-1.13.0",
+  "code_sha256": {
+    "paper_models.py": "10d33245d1a01d32a18f1b91a075bfbd2e39adc910a8e1850e4146aafde07a69",
+    "paper_run_models.py": "202666c7eecaa9b0afc7ac0e4c648f5c369bcb4412ae214eea356604b6c389d7",
+    "paper_store.py": "81b0c24c0858272c011f9612b9ea6783e9617fbf6748ac83f7e840273f181f21",
+    "paper_references.py": "94a4d3563a56c780699733292171addeee9b0a349c7f39f6ea0e5a271b4d1d21",
+    "paper_extraction.py": "db1942a70892fdd6b02e36784aec21dad5958cc6549a0d937ed6506144495858",
+    "paper_runs.py": "15a1ec1f86d7c976ce329256958bf5e140d1dbc2891ecaeac9246917038e5c9e",
+    "retrieval.py": "6d70d1fd473c8d40c40cefc0415949e6d619f49d7e7bd7797f94ff7f1e7564a8",
+    "chunking.py": "2a10305742a0930f7528befe1c5860912dca6515c43bbdf82379d56fd5a26bed",
+    "document_blocks.py": "70809be19af43a8f69a0b85a66ebee5d2c3d148f5609aa6b49c9e3ab4e27e3a2",
+    "policy.py": "f9c966d8f26c501baa404695442c173420fe77e45fbe8f30ee55647622d20bb0",
+    "providers/typesafe_jev.py": "e69c3365a8ee113013144f3f95aaf155926149ce2fc185c70419cf3171d10a9d"
+  }
+}
