@@ -1,6 +1,7 @@
 # P1.4 / P1.5: owner-operated real-paper acceptance
 
-Status: reviewed software, awaiting human real-paper/Jev acceptance. PR #24 stays open.
+Status: reviewed software, awaiting human real-paper/Jev acceptance at P1.5. The owner
+separately authorized PR #24 merge/deployment after green checks; merge is not acceptance.
 This is not P1.6 retrieval research, P1.7 full E2E/rehearsal, scientific validation or
 a held-out accuracy benchmark. No false-support-rate claim follows from these tests.
 

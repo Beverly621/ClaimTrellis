@@ -89,7 +89,8 @@ See [the explicit stage contract](P1_PAPER_WORKFLOW.md).
 
 The owner authorized one PR for run/item persistence, ordinary ClaimAudit execution,
 idempotency/retry/paper-aware budgeting, Matrix projection and the browser Review Queue
-on 2026-10-03. Implement P1.4a/b then P1.5a/b; stop for human acceptance and do not merge.
+on 2026-10-03. Implement P1.4a/b then P1.5a/b. The initial no-merge gate was later
+superseded by the explicit merge/deployment authorization below, not by test results.
 ClaimAudit remains the sole judgment unit; no PaperVerdict, paper score, bulk verdict,
 new provider/dependency/CLI, retrieval/model/policy fork or account expansion.
 
@@ -99,7 +100,7 @@ promotion or deployment configuration change is authorized. Paper provider quota
 need owner/operator decisions after cost testing; new budgets default to unconfigured
 and fail closed, not an implicit increase to the existing hosted limits.
 
-Implementation is ready for P1.4/P1.5 human acceptance; it is **not accepted or merged**
+Implementation is ready for P1.4/P1.5 human acceptance; it is **not accepted**
 by these automated checks. The stage contract lists the tests and local no-key synthetic
 browser smoke. Owner decisions still required: functional acceptance, measured paper
 budget values, confidential-data retention/deletion policy, and any separate production
@@ -108,15 +109,17 @@ backup/migration approval. P1.6/P1.7 remain unstarted.
 ### Authorized review and Vercel acceptance deployment — 2026-10-03
 
 The owner subsequently authorized review fixes and deployment of the latest P1.4/P1.5
-code to the existing Vercel website, keeping all changes in PR #24 and leaving it
-unmerged. This supersedes the earlier no-deployment/no-production-migration restriction
+code to the existing Vercel website, keeping all changes in PR #24. The owner then
+explicitly authorized merging PR #24 after green checks and deploying the `main` commit,
+with real-paper/live-Jev acceptance consolidated at P1.5. This supersedes the earlier
+no-merge/no-deployment/no-production-migration restrictions
 only for this acceptance deployment. It is not a release or product acceptance.
 
 The owner approved explicit paper quota values in Vercel and enabling the existing
 Hosted Provider, including its existing Guest access and user/IP protections. The IP
 HMAC secret stays solely in Vercel; API keys, database URLs, environment files and
-backups must never enter Git. The website uses a review branch until acceptance;
-the next automatic deployment from `main` would otherwise replace that branch version.
+backups must never enter Git. Deploy the reviewed `main` merge commit through the existing
+Vercel production integration; do not promote an older preview or change branch tracking.
 
 Before the approved additive `0004`/`0005` migrations, the seven existing application
 tables were backed up to a Git-ignored local custom archive with mode `600`. Archive
