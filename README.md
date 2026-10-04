@@ -62,14 +62,14 @@ Paper Workflow is available at `/projects` and `/api/v1/projects`: owner-scoped
 manuscripts, exact-span claim confirmation, uploaded sources and human identity mapping,
 explicit per-source audit orchestration, a Review Queue and Evidence Matrix. Each cell
 remains an ordinary ClaimAudit with human final judgment, never a paper verdict/score.
-See [the workflow guide](docs/PAPER_WORKFLOW.md) and [retention](docs/PRIVACY.md).
+See [the stage boundaries](docs/P1_PAPER_WORKFLOW.md) and [retention](docs/PRIVACY.md).
 
 The [offline retrieval lab](experiments/retrieval/README.md) compares production lexical
 v2 with experimental dense/RRF on identical source-grounded pools. It is not a production
 backend. Synthetic regression results and live integration smoke are not scientific
 accuracy validation, automatic peer review, paper-quality scoring or autonomous fact checking.
-See the [evaluation protocol](docs/EVALUATION_PROTOCOL.md) for formal annotation and
-held-out evaluation requirements. Raw experiment and acceptance reports stay local.
+See the [recorded synthetic ablation](docs/retrieval-ablation-report.md) and
+[P1 engineering acceptance](docs/P1_ACCEPTANCE.md) for results, scope and remaining gates.
 
 Requirements: Python 3.11 or newer.
 
@@ -97,7 +97,7 @@ and evaluation outputs are ignored by Git.
 For the full engineering acceptance suite, install `.[dev,e2e]`, run
 `python -m playwright install chromium`, and supply a disposable PostgreSQL database
 named `claim_trellis_test` as `TEST_DATABASE_URL`. See
-[self-hosting](docs/SELF_HOSTING.md) for migrations and isolated acceptance checks.
+[P1 acceptance](docs/P1_ACCEPTANCE.md) for migrations, browser tests and opt-in live smoke.
 
 ## CLI examples
 
@@ -116,7 +116,7 @@ claim-trellis benchmark run benchmarks/literature_seed.jsonl
 
 # Score a JSONL predictions file against gold labels.
 claim-trellis benchmark score \
-  benchmarks/literature_seed.jsonl ../claim-trellis-work/predictions.jsonl
+  benchmarks/literature_seed.jsonl reports/local/predictions.jsonl
 ```
 
 ## API outline
@@ -135,10 +135,10 @@ claim-trellis benchmark score \
 - `GET /api/v1/audits/{audit_id}/revisions` — inspect revision attempts, including failures.
 - `GET /api/v1/audits/{audit_id}/events` — retrieve the append-only audit trail.
 
-Interactive API documentation is available at `/docs` in local development, but is
-disabled by default in hosted deployments. See [self-hosting](docs/SELF_HOSTING.md)
-for configuration and [the data model](docs/DATA_MODEL.md) for versioned evidence
-and review contracts.
+Interactive API documentation is available at `/docs` while the service is running.
+See [UI and review-loop contracts](docs/UI_AND_REVIEW_V1.md) for concurrency, migration,
+and compatibility details, and [P0 Core Audit Fidelity](docs/P0_CORE_AUDIT_FIDELITY.md)
+for additive evidence-selection fields and versioned contracts.
 
 ## Hosted anonymous workspaces
 
@@ -155,7 +155,7 @@ audit URL such as `/?audit=<id>#result` reopens that owned record after refresh.
 is requested. Clearing browser data, signing out, or changing devices before account
 linking can make that anonymous workspace inaccessible, although its records remain on
 the server. Account Access v1 adds optional Email OTP and Google linking behind
-`CLAIM_TRELLIS_ACCOUNT_ACCESS_ENABLED`; see [self-hosting](docs/SELF_HOSTING.md)
+`CLAIM_TRELLIS_ACCOUNT_ACCESS_ENABLED`; see [operator setup](docs/ACCOUNT_SETUP.md)
 before enabling it.
 
 Hosted paid-provider calls are disabled by default. Migration `0002_provider_usage.sql`
