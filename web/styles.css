@@ -2903,3 +2903,21 @@ input::placeholder, textarea::placeholder { color: #5a7077; }
 .candidate-choice { display: flex; gap: 0.75rem; align-items: flex-start; }
 .candidate-choice input[type="checkbox"] { width: auto; min-width: 1rem; margin-top: 0.2rem; }
 .evidence-candidates .context-block { max-height: 24rem; overflow: auto; }
+
+/* Additive Paper Workflow: native forms and horizontally scrollable evidence table. */
+.paper-main { max-width: 1500px; padding-block: 90px; }
+.paper-section { margin-block: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.paper-card { border: 1px solid var(--line); border-radius: 16px; padding: 1.25rem; margin-block: 1rem; }
+.paper-main label { display: block; margin-block: .7rem; }
+.paper-main input:not([type="checkbox"]), .paper-main select, .paper-main textarea { display: block; width: 100%; max-width: 50rem; padding: .65rem; color: inherit; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; }
+.paper-main textarea { min-height: 6rem; }
+.paper-main button { margin: .3rem .5rem .3rem 0; }
+.paper-main :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.paper-main pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30rem; overflow: auto; }
+.paper-main blockquote { padding: .5rem 1rem; margin-inline: 0; border-left: 2px solid var(--accent); }
+.paper-table-wrap { overflow-x: auto; }
+.paper-matrix { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: .88rem; }
+.paper-matrix caption { text-align: left; margin-block: 1rem; }
+.paper-matrix th, .paper-matrix td { border-bottom: 1px solid var(--line); padding: .75rem; vertical-align: top; text-align: left; }
+.paper-matrix td { min-width: 100px; max-width: 330px; overflow-wrap: anywhere; }
+.paper-block { display: block; margin-top: .5rem; }

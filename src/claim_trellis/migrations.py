@@ -13,6 +13,7 @@ MIGRATION_NAMES = (
     "0002_provider_usage.sql",
     "0003_user_profiles.sql",
     "0004_paper_workflow.sql",
+    "0005_paper_runs.sql",
 )
 
 

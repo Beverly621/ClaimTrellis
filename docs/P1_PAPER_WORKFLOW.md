@@ -1,7 +1,7 @@
 # Paper Workflow: stage contracts and human acceptance
 
-P0 was accepted on 2026-10-03. Only P1.1, P1.2 and P1.3 are authorized, each in its
-own stacked PR and held for human acceptance. This backend prototype is not complete P1.
+P0 and P1.1–P1.3 were accepted on 2026-10-03 (PRs #20–#23 merged). P1.4–P1.5 are
+authorized as one PR held for human acceptance. This is not complete P1: P1.6/P1.7 are deferred.
 No new `PaperVerdict`, paper score, provider, dependency or CLI command is introduced.
 
 ## P1.1 — Contracts and persistence
@@ -156,9 +156,125 @@ tests with synthetic data, not real-literature validation or a held-out accuracy
 
 ## Deferred
 
-P1.4 audit fan-out/idempotency/retry/quota, P1.5 Matrix, P1.6 dense/hybrid/RRF/offline
-benchmark and P1.7 end-to-end/live-Jev acceptance require separate authorization.
+P1.6 dense/hybrid/RRF/offline benchmark and P1.7 full end-to-end/live-Jev/migration
+rehearsal require separate authorization.
 No performance conclusion is justified by the workflow contract tests.
+
+## P1.4 — Ordinary audit orchestration (active contract)
+
+Run creation plans only. Each execute request processes one persisted item, by reusing
+the existing P0 `run_audit()` and ordinary ClaimAudit persistence. All claims/mappings
+must be confirmed with a matching historical human identity decision. Immutable input
+snapshots preserve claim text/revision and candidate/reference/source/parser hashes.
+One source link has one current initial audit; later semantic re-evaluation uses ordinary
+Audit Revision, never an unbounded sequence of duplicate initial audits.
+
+Database leases fence concurrent execution. Completed items replay the same audit ID.
+Cached provider results/errors and full audit checkpoints allow safe persistence recovery
+without another model call. If an interrupted external call has no durable outcome, fail
+closed as `provider_outcome_unknown`; no automatic double-charge retry is claimed.
+Provider errors that P0 turns into a valid fail-closed audit finish the item normally.
+
+Paper daily/user, project/run and provider concurrency budgets are explicit configuration
+with no new cost-bearing numeric defaults. Preflight is an estimate, not a reservation;
+each real model call atomically reserves in the database. Existing hosted IP protections
+remain enforced. Deterministic-only execution is an explicit mode, not a hidden fallback.
+
+## P1.5 — Matrix and browser workflow (active contract)
+
+The Matrix is an owner/project-scoped projection, not a stored judgment. Each mapping
+has its own stable row and ordinary audit link; workflow states remain separate from raw
+provider relation, policy status and human decision. Counts are workflow counts, not a
+paper score. The browser reuses the ordinary Evidence Console, review and revision APIs.
+Queue execution is bounded, refresh/resume uses persisted state, and identity changes
+clear project content and invalidate late responses. No bulk Accept/Reject controls.
+
+### API / persistence boundaries
+
+Under `/api/v1/projects/{project}`:
+
+- `POST /audit-runs`: a content-aware idempotent plan for 1–200 selected links only.
+- `GET /audit-runs`, `GET /audit-runs/{run}`: persisted membership, item status and live
+  preflight. Run status is derived from its items, not a semantic verdict. Reading run
+  state recovers expired leases to an explicit failed/unknown state.
+- `POST /audit-runs/{run}/items/{item}/execute`: one ordinary audit at most, requiring
+  `idempotency_key` and the original `input_snapshot_hash`.
+- `GET /matrix?limit=100&offset=0`: read-only stable rows, complete-project workflow
+  counts and paginated rows; no model call, human decision or new judgment record.
+
+The canonical item is shared when another plan selects the same source link. Changing
+its initial input or provider mode conflicts; later re-evaluation uses P0 Revision.
+Audit + versions/events + ProjectAuditLink + item completion commit atomically. Provider
+outcomes and the ordinary-audit recovery checkpoint commit before that transaction.
+Safe storage retries are bounded to three attempts; completed audits, semantic results,
+and unknown provider outcomes are never automatically re-evaluated. Execution keys are
+bounded to 200 per item; reuse a key rather than creating unlimited retries. P0's existing
+2,000-character citation bound applies; the full original reference/hash remains in the
+project record and input snapshot. No raw provider error body is stored by orchestration.
+
+SQLite adds orchestration tables in the existing local database. PostgreSQL requires
+`0005_paper_runs.sql` after `0004`, with RLS and no `anon`/`authenticated` grants. **Do not
+apply either migration to production just to make a PR preview work.** This PR supplies
+migration code and disposable-database contract tests, not production approval or the
+P1.7 operator migration rehearsal.
+
+### Operator choices (not enabled by this PR)
+
+All three settings default to `None` / unconfigured:
+
+| Server-only setting | Meaning |
+| --- | --- |
+| `CLAIM_TRELLIS_PAPER_DAILY_USER_LIMIT` | Calls per owner over rolling 24 hours |
+| `CLAIM_TRELLIS_PAPER_RUN_PROVIDER_LIMIT` | Provider calls charged to one run |
+| `CLAIM_TRELLIS_PAPER_MAX_CONCURRENT_PROVIDER_CALLS` | Global in-flight paper provider reservations |
+
+Configure them only after owner cost review. Preflight is an estimate; each actual
+provider evaluation is reserved atomically. In hosted mode it also reserves the existing
+usage ledger in the same transaction, checks the configured paper-user budget across
+hosted usage, and preserves the existing IP limit of 10 and ordinary Revision limit of 5.
+The standalone audit's `USER_LIMIT = 7` is unchanged. Configuring paper budgets does not
+enable the hosted-provider flag or supply a key/IP secret. Failed/unknown calls consume
+budget; an unknown result is not refunded. P0 transport retries remain in its provider.
+
+### P1.4 / P1.5 test checklist and human acceptance
+
+Automated software tests (synthetic fixtures / stub providers only):
+
+- Both SQLite and real disposable PostgreSQL: owner/run scoping, human claim/identity
+  gates, immutable source snapshots, one/multi-source ordinary audits, plan and execution
+  replay, concurrent execution, transactional rollback and checkpoint recovery.
+- Explicit unconfigured/partial/concurrent budgets; atomic hosted IP reservation;
+  provider error -> completed fail-closed ordinary audit; interrupted/unknown outcome
+  -> no second call; expired global lease recovery; all six relation labels finish without
+  semantic retry; safe retry bounds; existing P0 human review and Revision projection.
+- Deterministic read-only Matrix, stable multi-source row IDs, pagination/counts,
+  raw relation != policy result, accepted/rejected/deferred/revision states and stale CAS.
+- Browser rendering: HTML escaping, table headers/native labeled controls, bounded
+  queue/partial stop, pagination, existing audit links, signed-out no-fetch, account change
+  clearing and stale response suppression. Existing Evidence Console tests remain green.
+- Synthetic HTTP component fixture: 3 confirmed claims, 4 confirmed source links and
+  1 unmapped -> 4 independent ordinary audits, each with ordinary event history.
+
+Local browser component smoke on 2026-10-03 used **no Jev key**: uploaded synthetic TXT
+manuscript/sources; confirmed three claim rubrics and four identities; planned without
+execution; executed four deterministic-only audits with the two-worker queue; opened
+the existing Evidence Console; recorded one synthetic Defer; returned to the same project;
+refreshed and filtered the persisted Matrix. This is not human product acceptance, live
+Jev validation, literature evaluation, a held-out benchmark, or P1.7 full E2E completion.
+
+Before merging, the owner should repeat on a local/disposable database:
+
+1. One confirmed claim/two confirmed sources -> two independently reviewable ordinary
+   audits and project events containing both IDs. Confirm no automatic acceptance.
+2. Keep a candidate or mapping pending/rejected, leave a source missing, then exhaust a
+   test-only configured budget: no silent audit, explicit blocked/failed item state.
+3. Three claims/four confirmed links/one unmapped -> separate Matrix rows. Inspect each
+   uploaded source, selected evidence, ordinary audit, human decision and event history;
+   return/refresh and ensure identities and decisions persist.
+4. Simulate two browsers' stale decision, logout and account switch. Confirm state clears,
+   stale decisions conflict, and no old-owner text or pending request enters the new view.
+5. Approve cost-bearing quota values and a separate production backup/migration plan
+   only if/when deployment is authorized. P1.6/P1.7 stay deferred.
 
 ## Conceptual references (no code or dataset imported)
 

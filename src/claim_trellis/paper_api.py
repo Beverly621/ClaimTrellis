@@ -8,6 +8,7 @@ from typing import Annotated, TypeVar, cast
 
 from anyio import to_thread
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from psycopg.errors import UndefinedTable
 
 from claim_trellis.auth import AuthPrincipal, principal
 from claim_trellis.config import Settings
@@ -53,6 +54,13 @@ async def checked(operation: Awaitable[T]) -> T:
         return await operation
     except WorkflowNotFound as exc:
         raise HTTPException(status_code=404, detail="Workflow record not found.") from exc
+    except UndefinedTable as exc:
+        # A successful deployment does not authorize or apply production migrations.
+        # Keep P0 available and fail this additive workflow closed without SQL details.
+        raise HTTPException(
+            status_code=503,
+            detail="Paper Workflow is unavailable until an operator applies the required database migrations.",
+        ) from exc
     except LifecycleConflict:
         raise
     except ValueError as exc:

@@ -1,7 +1,7 @@
 # Core Capability Roadmap
 
-The owner accepted P0 and authorized only P1.1–P1.3 on 2026-10-03. Later P1 stages
-and P2 require separate authorization. The product remains an auditable
+The owner accepted P0 and P1.1–P1.3 and authorized P1.4–P1.5 on 2026-10-03.
+P1.6, P1.7 and P2 require separate authorization. The product remains an auditable
 claim-to-source verification system with human final judgment.
 
 ## P0 — Core Audit Fidelity v2 (accepted 2026-10-03)
@@ -28,18 +28,19 @@ Preserve raw normalized text and compatible legacy fields.
   evidence-set hashes. Prepare offline P0 regression cases and source-grounded literature
   benchmarks; do not claim measured Jev accuracy without a formal held-out evaluation.
 
-## P1 — Paper Workflow (P1.1–P1.3 authorized; human acceptance pending)
+## P1 — Paper Workflow (P1.4–P1.5 authorized / active)
 
-The three backend stages use separate, stacked PRs; none is authorized for automatic merge.
+The first three backend stages were accepted and merged as PRs #21, #22 and #23.
+P1.4–P1.5 use one PR and stop at human acceptance; no automatic merge is authorized.
 See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
 
 | Stage | Boundary | Status |
 |---|---|---|
-| P1.1 | Contracts and SQLite/PostgreSQL persistence | Implemented; human acceptance pending |
-| P1.2 | Exact-span extraction and human Confirm/Edit/Reject | Implemented; human acceptance pending |
-| P1.3 | Bibliography, uploaded sources, human mapping identity | Implemented; human acceptance pending |
-| P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Deferred |
-| P1.5 | Review Queue / Paper Evidence Matrix | Deferred |
+| P1.1 | Contracts and SQLite/PostgreSQL persistence | Accepted 2026-10-03 |
+| P1.2 | Exact-span extraction and human Confirm/Edit/Reject | Accepted 2026-10-03 |
+| P1.3 | Bibliography, uploaded sources, human mapping identity | Accepted 2026-10-03 |
+| P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Authorized / Active |
+| P1.5 | Review Queue / Paper Evidence Matrix | Authorized / Active |
 | P1.6 | Offline dense/hybrid retrieval experiments and benchmarks | Deferred |
 | P1.7 | Full workflow E2E, live Jev smoke and final acceptance | Deferred |
 

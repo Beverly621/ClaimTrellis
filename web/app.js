@@ -189,7 +189,9 @@ function renderAudit(audit, versions, revisions, events, draft = null) {
   ];
   checkRows.push(...AuditFidelity.dimensions(judgment, checks));
   $("#result").hidden = false;
+  const paperProject = new URLSearchParams(location.search).get("project");
   $("#result").innerHTML = `
+    ${paperProject ? `<p><a href="/projects?project=${encodeURIComponent(paperProject)}">← Back to this project's Evidence Matrix</a></p>` : ""}
     <div class="result-banner"><div><span class="micro">${final ? "HUMAN-CONFIRMED PROPOSAL" : "POLICY PROPOSAL"} / V${audit.current_proposal_version}</span><h3>${esc(label(audit.proposal.status))}</h3></div><div class="proposal-score"><span>Provider relation probability</span><strong>${judgment ? percent(judgment.relation.probabilities[judgment.relation.choice]) : "—"}</strong></div><span class="status-badge status-${esc(audit.review_status)}">${esc(label(audit.review_status))}</span></div>
     <div class="result-grid"><div class="evidence-column">
       <section class="detail-panel evidence-panel"><div class="panel-heading"><h4>Claim & evidence</h4><button class="info-button" type="button" data-help="evidence" aria-label="About evidence selection">?</button></div><span class="field-label">CLAIM</span><blockquote class="claim-card">${esc(audit.claim)}</blockquote><div class="source-line"><span class="field-label">SOURCE</span><span>${esc(audit.source.title || audit.citation || "Uploaded source")} · ${esc(label(audit.source.access_tier))}</span></div><h4 class="selected-evidence-title">SELECTED EVIDENCE</h4>${(audit.evidence_set?.passages || [passage]).map((item, i) => EvidenceView.render(audit.claim, item, audit.source, String(i))).join("")}${AuditFidelity.renderCandidates(audit, selectedIds, final || processing)}</section>

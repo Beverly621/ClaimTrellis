@@ -146,56 +146,49 @@ class PostgresAuditStore:
 
     async def save(self, owner_user_id: str, audit: ClaimAudit) -> ClaimAudit:
         async with self.pool.connection() as conn:
-            await conn.execute(
-                "INSERT INTO audits "
-                "(audit_id,owner_user_id,created_at,updated_at,record_json) "
-                "VALUES (%s,%s,%s,%s,%s)",
-                (
-                    audit.audit_id,
-                    owner_user_id,
-                    audit.provenance.created_at,
-                    utc_now(),
-                    Jsonb(audit.model_dump(mode="json")),
-                ),
-            )
-            snapshot = await self._create_version(conn, owner_user_id, audit, emit_event=False)
-            await self._event(
-                conn, owner_user_id, audit, "audit.created", audit.model_dump(mode="json")
-            )
-            await self._event(
-                conn,
-                owner_user_id,
-                audit,
-                "source.loaded",
-                {"source": audit.source.model_dump(mode="json")},
-            )
-            for name, payload in initial_events(audit):
-                await self._event(conn, owner_user_id, audit, name, payload)
-            await self._event(
-                conn,
-                owner_user_id,
-                audit,
-                "checks.completed",
-                {"checks": audit.deterministic_checks.model_dump(mode="json")},
-            )
-            await self._event(
-                conn,
-                owner_user_id,
-                audit,
-                "judgment.completed",
-                {
-                    "judgment": audit.judgment_result.model_dump(mode="json")
-                    if audit.judgment_result
-                    else None
-                },
-            )
-            await self._event(
-                conn,
-                owner_user_id,
-                audit,
-                "proposal.created",
-                {"proposal": snapshot.model_dump(mode="json")},
-            )
+            await self.save_in_transaction(conn, owner_user_id, audit)
+        return audit
+
+    async def save_in_transaction(self, conn: Any, owner: str, audit: ClaimAudit) -> ClaimAudit:
+        """Ordinary audit + versions/events; transaction lifetime belongs to the caller."""
+        await conn.execute(
+            "INSERT INTO audits (audit_id,owner_user_id,created_at,updated_at,record_json) VALUES (%s,%s,%s,%s,%s)",
+            (
+                audit.audit_id,
+                owner,
+                audit.provenance.created_at,
+                utc_now(),
+                Jsonb(audit.model_dump(mode="json")),
+            ),
+        )
+        snapshot = await self._create_version(conn, owner, audit, emit_event=False)
+        await self._event(conn, owner, audit, "audit.created", audit.model_dump(mode="json"))
+        await self._event(
+            conn, owner, audit, "source.loaded", {"source": audit.source.model_dump(mode="json")}
+        )
+        for name, payload in initial_events(audit):
+            await self._event(conn, owner, audit, name, payload)
+        await self._event(
+            conn,
+            owner,
+            audit,
+            "checks.completed",
+            {"checks": audit.deterministic_checks.model_dump(mode="json")},
+        )
+        await self._event(
+            conn,
+            owner,
+            audit,
+            "judgment.completed",
+            {
+                "judgment": audit.judgment_result.model_dump(mode="json")
+                if audit.judgment_result
+                else None
+            },
+        )
+        await self._event(
+            conn, owner, audit, "proposal.created", {"proposal": snapshot.model_dump(mode="json")}
+        )
         return audit
 
     async def _status(self, conn: Any, owner: str, audit: ClaimAudit, status: ReviewStatus) -> None:

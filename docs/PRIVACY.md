@@ -70,6 +70,25 @@ text and events as sensitive retained records and do not upload confidential mat
 Supplied source metadata and parsed bibliography metadata are unverified descriptions,
 not proof of paper identity. Human identity decisions and text hashes are stored separately.
 
+## Paper orchestration and browser projection (P1.4–P1.5)
+
+An explicitly executed, human-confirmed claim/source pair creates an ordinary ClaimAudit
+under the same owner. Its selected evidence is sent to the configured provider only when
+provider evaluation is explicitly selected, available and atomically budget-reserved.
+Planning, Matrix projection and human claim/source decisions do not call a provider.
+Runs/items retain immutable input identities/hashes, confirmed claim text, operational
+state, attempts and audit association. Recovery checkpoints additionally retain the ordinary
+audit snapshot and typed provider result (not a second paper-level judgment). Usage records
+retain sanitized outcome codes and token counters through the existing audit/provider
+records; hosted usage retains only the existing HMAC IP identifier, never raw IPs or keys.
+No expiry/deletion policy is introduced: these are sensitive retained records.
+
+The authenticated browser view includes normalized source/manuscript text, original
+reference/claim spans, evidence, reviewer notes and event history. It clears its in-memory
+view and pending selections on logout/account change and ignores stale responses. It does
+not put project text, audit data or reviewer drafts into browser local storage. Operators
+must approve a retention/deletion policy before confidential real-world use.
+
 ## Sensitive data
 
 Do not process protected health information, personal data, confidential peer-review
