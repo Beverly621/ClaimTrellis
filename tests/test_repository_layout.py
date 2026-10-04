@@ -42,6 +42,9 @@ def test_public_docs_and_local_links_are_complete():
 
 
 def test_approved_brand_assets_and_page_references():
+    readme = (ROOT / "README.md").read_text()
+    assert 'src="web/brand/lockup.png" alt="ClaimTrellis" width="430"' in readme
+    assert "lockup.svg" not in readme
     for filename, expected in {
         "mark.png": (512, 512),
         "lockup.png": (923, 244),
