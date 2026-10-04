@@ -46,6 +46,30 @@ def test_synthetic_requires_explicit_opt_in():
         Dataset(FIXTURE)
 
 
+def test_published_synthetic_reports_match_frozen_data_and_metrics():
+    dataset = Dataset(FIXTURE, allow_synthetic=True)
+    for split in ("dev", "test"):
+        report = json.loads((FIXTURE.parent / "reports" / f"synthetic-{split}-v1.json").read_text())
+        assert report["dataset"] == dataset.manifest.model_dump()
+        assert report["split_hash"] == dataset.split_hash
+        assert report["working_tree_dirty"] is False
+        assert report["commit_sha"] == "b1b70038bad8dbfd0d7198837d50f5cd451555d5"
+        assert report["embedding"]["embedding_model_revision"] == (
+            "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
+        )
+        assert report["embedding"]["external_api_calls"] == 0
+        assert report["adoption"].startswith("NOT AUTHORIZED")
+        assert [r["baseline"] for r in report["results"]] == [
+            "lexical-evidence-v2",
+            "dense-experimental",
+            "hybrid-rrf-experimental",
+        ]
+        for result in report["results"]:
+            assert result["split"] == split and result["query_count"] == 7
+            for row in result["queries"]:
+                assert row["metrics"] == metrics(row["ranking"], dataset.qrels[row["query_id"]])
+
+
 @pytest.mark.parametrize("baseline", ["lexical", "dense", "hybrid"])
 def test_all_baselines_share_pool_metrics_and_slices(baseline):
     dataset = Dataset(FIXTURE, allow_synthetic=True)

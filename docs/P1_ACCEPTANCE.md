@@ -5,6 +5,16 @@ P1.5 real-paper/manual acceptance and authorized the P1.6/P1.7 PR, merge after g
 checks, and existing Vercel production deployment. Final test/commit evidence is recorded
 in the PR. This record is not independent scientific validation.
 
+Status: **P1 — Paper Workflow accepted 2026-10-03** for the engineering/workflow scope.
+Formal real-paper retrieval annotations, scientific validation and dense adoption remain
+explicit separate gates, not silently marked complete by this status.
+
+Local final checks: **276 Python tests, zero skipped; 66 JS tests, zero failed/skipped**;
+Ruff lint/format, mypy (57 source files), and production Docker build passed. Statement
+coverage for core plus experimental tooling was **90%**. Standalone offline runners are
+also exercised by the recorded clean-SHA dev/test experiment and real live smoke rather
+than counted as covered by the unit-suite instrumenter.
+
 ## Frozen boundaries
 
 [`P1_ACCEPTANCE_FREEZE.json`](P1_ACCEPTANCE_FREEZE.json) freezes paper workflow contracts,
@@ -25,7 +35,7 @@ embedding and Chromium tooling are separate optional extras.
 | Traceability | `verify_trace` joins Matrix → manuscript exact span → edited confirmed claim → reference exact span/hash → source-identity event/reviewer → uploaded source/hash → immutable input snapshot → all candidates → selected evidence hash → checks → raw Jev/model/questions → policy rationale → immutable versions → final reviewer/revisions. An intentionally corrupted source hash fails |
 | Edge cases and regressions | Existing SQLite/PostgreSQL workflow/run/auth/revision/provider tests: stale CAS, concurrent/replayed requests, interruption/checkpoint recovery, unknown outcomes fail closed, provider timeout/error/invalid answers, quota exhaustion, all six relations, no duplicate paid execution; JS tests stop/drain failed queues and ignore stale account responses |
 | PostgreSQL rehearsal | `test_p1_migration_rehearsal.py`: fresh 0001→0005 and existing 0003→0005; synthetic custom-format backup; restoration to another newly created disposable DB; pre-upgrade recovery, repeat migration, retained audit/events, owner isolation, RLS and no anonymous/authenticated grants. No production down-migration, clone or migration |
-| Small UI request | Desktop/mobile, Light/Night: equal 240px × 48px hero buttons, 📮 icon, no entry arrows or removed hero text/divider, no horizontal overflow, keyboard dialog entry/focus restoration, zero provider calls |
+| Small UI request | Desktop/mobile, Light/Night: equal 240px × 48px hero buttons, 📮 icon, no entry arrows or removed hero text/divider; homepage header divider removed, other page headers unchanged; no horizontal overflow, keyboard dialog entry/focus restoration, zero provider calls |
 | Live smoke | Two real hosted audit requests from one independent synthetic Guest; real Supabase authentication and server-side Jev, pinned requested `jev-1.13.0`, resolved `jev-1.13.0`, v3 12-answer validation, usage and persisted records; no human verdict/accuracy scoring |
 
 Live smoke returned **live integration smoke passed** on 2026-10-03 (owner timezone).

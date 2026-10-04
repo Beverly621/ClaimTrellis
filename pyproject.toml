@@ -87,3 +87,4 @@ packages = ["claim_trellis", "experiments"]
 [[tool.mypy.overrides]]
 module = ["sentence_transformers.*"]
 follow_imports = "skip"
+ignore_missing_imports = true

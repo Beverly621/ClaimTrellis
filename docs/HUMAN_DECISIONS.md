@@ -1,6 +1,6 @@
 # ClaimTrellis v0.1 decisions and release gates
 
-**Current status: ClaimTrellis v0.1 — P0/P1.1–P1.5 Accepted / P1.6–P1.7 Verification / Pre-Release**
+**Current status: ClaimTrellis v0.1 — P1 Paper Workflow Accepted 2026-10-03 / Feature Frozen / Pre-Release**
 
 The v0.1 product direction is frozen. ClaimTrellis is an independent project and its only
 primary brand. TypeSafe Jev is the first structured judgment provider and part of the

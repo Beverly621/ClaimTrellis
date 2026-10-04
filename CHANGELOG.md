@@ -14,7 +14,8 @@ All notable changes will be documented here.
   owner isolation and full trace assertions; disposable PostgreSQL fresh/upgrade and
   backup/restore rehearsals; opt-in two-case live integration smoke and acceptance docs.
 - Owner-requested small UI adjustment: equal hero entry sizes, 📮 Sign in icon, no
-  hero/header entry arrows, and removed hero eyebrow text/divider. Authentication unchanged.
+  hero/header entry arrows, removed hero eyebrow text/divider and homepage header divider.
+  Authentication and other page headers unchanged.
 - P1.4–P1.5: persisted run/item orchestration, idempotency, quota/recovery checkpoints,
   per-source ordinary audits and browser Review Queue / Evidence Matrix. The owner
   reported real-paper/live-Jev acceptance on 2026-10-03 after PR #24 merge/deployment.

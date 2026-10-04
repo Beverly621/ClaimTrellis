@@ -3,6 +3,7 @@
 P0 and P1.1–P1.3 were accepted on 2026-10-03 (PRs #20–#23 merged). P1.4–P1.5 were
 merged as PR #24; the owner subsequently reported human real-paper/live-Jev acceptance.
 P1.6/P1.7 are now authorized in one new PR, with merge/deployment after green checks.
+P1 — Paper Workflow accepted 2026-10-03 (engineering scope; see separate scientific gates).
 No new `PaperVerdict`, paper score, provider, dependency or CLI command is introduced.
 
 ## P1.1 — Contracts and persistence
@@ -215,9 +216,10 @@ project record and input snapshot. No raw provider error body is stored by orche
 
 SQLite adds orchestration tables in the existing local database. PostgreSQL requires
 `0005_paper_runs.sql` after `0004`, with RLS and no `anon`/`authenticated` grants. **Do not
-apply either migration to production just to make a PR preview work.** This PR supplies
-migration code and disposable-database contract tests, not production approval or the
-P1.7 operator migration rehearsal.
+apply either migration to production just to make a PR preview work.** PR #24 supplied
+migration code and disposable-database contract tests, not production
+approval or the P1.7 operator migration rehearsal. P1.7 separately rehearses through
+0005 on disposable databases as documented below; it authorizes no new production migration.
 
 ### Operator choices (not enabled by this PR)
 
@@ -286,6 +288,10 @@ exact production-v2 spans, unique IDs/hashes, canonical paper identities and sou
 dev/test. Formal queries require human atomic-claim confirmation; qrels require two
 independent reviewers/adjudication. No supplied real-paper qrels are assumed to exist.
 Synthetic data requires explicit opt-in and is never promoted to human labels.
+
+The [recorded ablation report](retrieval-ablation-report.md) publishes only invented,
+licensed engineering fixtures and clean-code provenance. It does not satisfy the
+separate real-paper human annotation or dense-production adoption gates.
 
 Lexical calls the frozen production retriever; CPU dense searches the same identified
 source pool; hybrid sums reciprocal ranks, never raw score spaces. Model/revision,

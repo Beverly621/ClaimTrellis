@@ -17,6 +17,8 @@ test("removed hero divider/copy and entry arrows do not return on auth updates",
     assert.equal(html.includes(copy), false);
   }
   assert.equal(html.includes('class="hero-top"'), false);
+  assert.match(html, /class="site-header home-header"/);
+  assert.match(css, /\.site-header\.home-header \{ border-bottom: 0; \}/);
   for (const id of ["hero-primary", "hero-secondary", "header-action"]) {
     const button = html.match(new RegExp(`id="${id}"[^>]*>(.*?)</button>`, "s"))[1];
     assert.equal(button.includes("↗"), false);

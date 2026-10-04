@@ -68,6 +68,8 @@ The [offline retrieval lab](experiments/retrieval/README.md) compares production
 v2 with experimental dense/RRF on identical source-grounded pools. It is not a production
 backend. Synthetic regression results and live integration smoke are not scientific
 accuracy validation, automatic peer review, paper-quality scoring or autonomous fact checking.
+See the [recorded synthetic ablation](docs/retrieval-ablation-report.md) and
+[P1 engineering acceptance](docs/P1_ACCEPTANCE.md) for results, scope and remaining gates.
 
 Requirements: Python 3.11 or newer.
 

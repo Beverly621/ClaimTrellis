@@ -15,6 +15,8 @@ Use a new output directory for every run. A test run changes `--split test`; nev
 tune on held-out labels. `run.json` records hashes, pinned revision, package/runtime
 versions, code SHA/dirty status, exact index settings, truncation, top-k and RRF k.
 `retrieval-ablation-report.md` records gains/regressions, costs and adoption gates.
+The [checked-in synthetic ablation](../../docs/retrieval-ablation-report.md) links the
+two complete clean-SHA run records. No real-paper annotations are inferred from them.
 
 ## Dataset contract
 

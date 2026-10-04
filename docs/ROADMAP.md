@@ -29,7 +29,7 @@ Preserve raw normalized text and compatible legacy fields.
   evidence-set hashes. Prepare offline P0 regression cases and source-grounded literature
   benchmarks; do not claim measured Jev accuracy without a formal held-out evaluation.
 
-## P1 — Paper Workflow (P1.6–P1.7 verification in progress)
+## P1 — Paper Workflow (accepted 2026-10-03)
 
 The first three backend stages were accepted and merged as PRs #21, #22 and #23.
 P1.4–P1.5 were merged as PR #24 and the owner reported human real-paper acceptance.
@@ -43,8 +43,8 @@ See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
 | P1.3 | Bibliography, uploaded sources, human mapping identity | Accepted 2026-10-03 |
 | P1.4 | Ordinary audit orchestration, retries and paper-aware quota | Human accepted 2026-10-03 |
 | P1.5 | Review Queue / Paper Evidence Matrix | Human accepted 2026-10-03 |
-| P1.6 | Offline dense/hybrid/RRF lab | Implemented; engineering experiment verification |
-| P1.7 | Full workflow E2E, live Jev smoke and acceptance | Verification in progress |
+| P1.6 | Offline dense/hybrid/RRF lab | Engineering lab accepted 2026-10-03; formal qrels/adoption gated |
+| P1.7 | Full workflow E2E, live Jev smoke and acceptance | Engineering acceptance 2026-10-03 |
 
 The P1 implementation includes:
 

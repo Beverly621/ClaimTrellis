@@ -281,7 +281,12 @@ def test_full_browser_workflow_and_traceability(server, style):
         page.locator("#review-notes").fill(
             "Final engineering acceptance after inspecting fictional evidence and proposal v2."
         )
-        page.locator('[data-action="accept"]').click()
+        with page.expect_response(
+            lambda r: r.request.method == "POST" and r.url.endswith("/reviews")
+        ) as reviewed:
+            page.locator('[data-action="accept"]').click()
+        assert reviewed.value.status == 200
+        playwright.expect(page.locator(".review-panel")).to_contain_text("Last action: accept")
         playwright.expect(page.locator('[data-action="accept"]')).to_be_disabled()
         assert len(payloads) == 4
         page.goto(url + "/projects?project=" + base.split("/")[-1])
@@ -353,6 +358,12 @@ def test_entry_ui_sizes_arrows_and_keyboard(server, width, theme, tmp_path):
         assert abs(a["height"] - b["height"]) < 0.5
         assert a["height"] >= 44 and a["width"] == 240
         assert page.locator(".hero-top,.hero-overline").count() == 0
+        assert (
+            page.locator(".home-header").evaluate(
+                "header => getComputedStyle(header).borderBottomWidth"
+            )
+            == "0px"
+        )
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         assert page.locator("html").get_attribute("data-theme") == theme
         secondary.focus()

@@ -2703,6 +2703,7 @@ body {
 body { background: var(--bg); color: var(--text); }
 .dim { color: var(--muted); }
 .site-header { background: var(--header); border-color: var(--line); }
+.site-header.home-header { border-bottom: 0; }
 .site-header nav { color: var(--muted); }
 .site-header nav a:hover, footer a:hover { color: var(--accent); }
 .header-tools { display: flex; align-items: center; gap: 18px; }
