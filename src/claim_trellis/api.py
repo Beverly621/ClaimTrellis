@@ -81,6 +81,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="ClaimTrellis API",
         version=__version__,
         description="Auditable claim-to-source verification with human final judgment.",
+        docs_url="/docs" if resolved_settings.resolved_api_docs_enabled else None,
+        redoc_url="/redoc" if resolved_settings.resolved_api_docs_enabled else None,
+        openapi_url="/openapi.json" if resolved_settings.resolved_api_docs_enabled else None,
         lifespan=lifespan,
     )
     app.state.settings = resolved_settings

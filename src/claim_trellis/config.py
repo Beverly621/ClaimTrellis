@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     jev_api_key: str | None = Field(default=None, validation_alias="TYPESAFE_API_KEY")
     auto_accept_enabled: bool = False
     hosted_provider_enabled: bool = False
+    api_docs_enabled: bool | None = None
     paper_daily_user_limit: int | None = Field(default=None, ge=1)
     paper_run_provider_limit: int | None = Field(default=None, ge=1)
     paper_max_concurrent_provider_calls: int | None = Field(default=None, ge=1)
@@ -58,6 +59,16 @@ class Settings(BaseSettings):
         if self.storage_backend != "auto":
             return self.storage_backend
         return "postgres" if self.database_url else "sqlite"
+
+    @property
+    def resolved_api_docs_enabled(self) -> bool:
+        if self.api_docs_enabled is not None:
+            return self.api_docs_enabled
+        return (
+            self.auth_mode == "local"
+            and self.selected_storage_backend == "sqlite"
+            and not self.hosted_provider_enabled
+        )
 
     def validate_runtime(self) -> None:
         if self.selected_storage_backend == "postgres" and not self.database_url:
