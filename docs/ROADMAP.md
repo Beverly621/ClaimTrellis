@@ -1,9 +1,8 @@
 # Core Capability Roadmap
 
-The owner accepted the real-paper/live-Jev P1.4–P1.5 workflow and authorized P1.6–P1.7
-in one PR on 2026-10-03, including merge/deployment after green checks. P2 and production
-dense retrieval require separate authorization. The product remains an auditable
-claim-to-source verification system with human final judgment.
+P0 and P1 are complete. The product remains an auditable claim-to-source verification
+system with human final judgment. Engineering acceptance is not scientific accuracy
+validation. P2 and production dense retrieval require separate approval.
 
 ## P0 — Core Audit Fidelity v2 (accepted 2026-10-03)
 
@@ -31,10 +30,7 @@ Preserve raw normalized text and compatible legacy fields.
 
 ## P1 — Paper Workflow (accepted 2026-10-03)
 
-The first three backend stages were accepted and merged as PRs #21, #22 and #23.
-P1.4–P1.5 were merged as PR #24 and the owner reported human real-paper acceptance.
-P1.6–P1.7 use one new PR; merge/deployment are authorized only after green checks.
-See [the stage contracts and manual checks](P1_PAPER_WORKFLOW.md).
+See [the user guide](PAPER_WORKFLOW.md) for the complete workflow and its boundaries.
 
 | Stage | Boundary | Status |
 |---|---|---|
@@ -71,8 +67,6 @@ Only after P1 and separate authorization:
 No new formats, OCR, web scraping, chatbot, summaries, writing/rewriting, automatic source
 replacement, paper scores, free-text model explanations, automatic acceptance, new
 providers, billing, collaboration, account expansion, or broad homepage/UI redesign.
-No dependency upgrades unless needed for a defect or security fix; embedding and browser
-dependencies are optional experiment/test extras only. No publication, visibility change,
-formal release or promotion is authorized. The owner authorized this PR's existing Vercel
-production deployment. Scientific performance claims remain blocked by formal annotation
-and held-out evaluation, not unlocked by engineering acceptance.
+Embedding and browser dependencies remain optional experiment/test extras only.
+Scientific performance claims require formal annotation and held-out evaluation;
+engineering acceptance does not establish them.

@@ -165,12 +165,11 @@ img {
   letter-spacing: -0.6px;
   font-size: 18px;
 }
-.alpha {
-  font: 9px var(--mono);
-  color: var(--muted);
-  padding: 3px 5px;
-  border: 1px solid var(--line);
-  margin-left: 4px;
+.brand .brand-lockup {
+  display: block;
+  width: 172px;
+  height: auto;
+  border-radius: 4px;
 }
 .site-header nav {
   display: flex;
@@ -2891,8 +2890,7 @@ input::placeholder, textarea::placeholder { color: #5a7077; }
 @media (max-width: 420px) {
   .site-header { padding-inline: 16px; }
   .site-header .brand { font-size: 14px; gap: 6px; }
-  .brand img { width: 22px; height: 22px; }
-  .brand .alpha { display: none; }
+  .brand .brand-lockup { width: 128px; height: auto; }
   .shelf-tile { flex-basis: 58vw; }
   .overview-grid { grid-template-columns: 1fr; }
   .overview-grid article { min-height: 145px; }

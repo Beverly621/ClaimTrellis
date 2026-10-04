@@ -330,6 +330,40 @@ def test_full_browser_workflow_and_traceability(server, style):
         browser.close()
 
 
+@pytest.mark.parametrize("width", [1440, 390, 320])
+@pytest.mark.parametrize("theme", ["light", "night"])
+def test_brand_lockup_all_pages_and_favicon(server, width, theme, tmp_path):
+    url, users, payloads = server
+    with playwright.sync_playwright() as p:
+        browser = p.chromium.launch()
+        context = browser.new_context(viewport={"width": width, "height": 1000})
+        context.add_init_script(
+            sdk_stub(users) + f"localStorage.setItem('claimtrellis-theme-v2','{theme}');"
+        )
+        context.route("https://cdn.jsdelivr.net/**", lambda route: route.abort())
+        page = context.new_page()
+        for path in ("/", "/history", "/projects"):
+            page.goto(url + path)
+            logo = page.locator("header .brand-lockup")
+            playwright.expect(logo).to_be_visible()
+            assert logo.evaluate("img => img.complete && img.naturalWidth === 923")
+            assert logo.evaluate("img => img.naturalHeight") == 244
+            rect = logo.bounding_box()
+            assert abs(rect["width"] / rect["height"] - 923 / 244) < 0.01
+            assert rect["x"] >= 0 and rect["x"] + rect["width"] <= width
+            assert page.locator("header .alpha").count() == 0
+            assert page.locator('link[rel="icon"]').get_attribute("href") == (
+                "/assets/brand/favicon-32.png"
+            )
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            assert page.locator("html").get_attribute("data-theme") == theme
+            page.screenshot(
+                path=str(tmp_path / f"brand-{path.strip('/') or 'home'}-{width}-{theme}.png")
+            )
+        assert payloads == []
+        browser.close()
+
+
 @pytest.mark.parametrize(
     "width,theme", [(1440, "light"), (1440, "night"), (390, "light"), (390, "night")]
 )

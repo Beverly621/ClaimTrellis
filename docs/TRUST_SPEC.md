@@ -101,4 +101,5 @@ selected passages; this is not a guarantee that every request excludes complete 
 
 Threshold constants exist to make experiments reproducible, not to claim validation.
 The six provider relations and the separate policy dispositions remain unchanged.
-See [the P0 contract](P0_CORE_AUDIT_FIDELITY.md) for compatibility and limitations.
+See [the data model](DATA_MODEL.md) for compatibility and
+[the evaluation protocol](EVALUATION_PROTOCOL.md) for validation requirements.
