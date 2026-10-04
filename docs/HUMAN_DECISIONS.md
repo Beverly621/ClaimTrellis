@@ -105,6 +105,37 @@ browser smoke. Owner decisions still required: functional acceptance, measured p
 budget values, confidential-data retention/deletion policy, and any separate production
 backup/migration approval. P1.6/P1.7 remain unstarted.
 
+### Authorized review and Vercel acceptance deployment — 2026-10-03
+
+The owner subsequently authorized review fixes and deployment of the latest P1.4/P1.5
+code to the existing Vercel website, keeping all changes in PR #24 and leaving it
+unmerged. This supersedes the earlier no-deployment/no-production-migration restriction
+only for this acceptance deployment. It is not a release or product acceptance.
+
+The owner approved explicit paper quota values in Vercel and enabling the existing
+Hosted Provider, including its existing Guest access and user/IP protections. The IP
+HMAC secret stays solely in Vercel; API keys, database URLs, environment files and
+backups must never enter Git. The website uses a review branch until acceptance;
+the next automatic deployment from `main` would otherwise replace that branch version.
+
+Before the approved additive `0004`/`0005` migrations, the seven existing application
+tables were backed up to a Git-ignored local custom archive with mode `600`. Archive
+inventory and SHA-256 were verified; this is an application-table backup, not a full
+Supabase/Auth backup or a completed restore rehearsal. Both migrations were applied;
+existing table row counts were unchanged; all seven new tables have RLS and no direct
+`anon`/`authenticated` read/write grants. No original data was deleted.
+
+Review fixes stop unscheduled queue calls after transport/render failures, drain requests
+already in flight, correct preflight for running/unsafe/exhausted/cached items, and return
+a sanitized 503 instead of an internal SQL failure when workflow tables are absent.
+
+Real English-paper uploads, source-identity review and live Jev calls are exclusively
+owner-operated. After that feedback, repair any defects before deciding on P1.6/P1.7;
+neither stage is started or accepted by this deployment. The owner should request the
+Hosted Provider be disabled and redeployed after testing; user/IP limits are not a
+site-wide token budget. Functional acceptance and retention/deletion decisions remain
+human gates. See [the manual handoff](P1_MANUAL_ACCEPTANCE.md).
+
 ## Authorized v0.1 exception: UI and proposal revision loop
 
 The owner authorized UI Design v1 and the minimum backend changes for versioned provider

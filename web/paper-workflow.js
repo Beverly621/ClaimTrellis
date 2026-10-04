@@ -47,13 +47,23 @@
       while (!stop && isCurrent() && cursor < items.length) {
         const item = items[cursor++];
         if (item.status === "completed" || item.status === "running" || item.retry_allowed === false) continue;
-        const result = await execute(item);
-        if (!isCurrent()) return;
-        await onResult(result);
-        if (result.status === "quota_blocked" || result.error_code === "provider_outcome_unknown") stop = true;
+        try {
+          const result = await execute(item);
+          if (!isCurrent()) return;
+          // Stop before rendering too: a delayed renderer must not admit more calls.
+          if (result.status === "quota_blocked" || result.error_code === "provider_outcome_unknown") stop = true;
+          await onResult(result);
+        } catch (error) {
+          stop = true;
+          throw error;
+        }
       }
     }
-    await Promise.all(Array.from({length: Math.min(2, Math.max(1, concurrency))}, worker));
+    // Drain already-started requests before releasing the UI's busy gate. Otherwise
+    // an error can leave an orphan worker scheduling calls during a second queue run.
+    const results = await Promise.allSettled(Array.from({length: Math.min(2, Math.max(1, concurrency))}, worker));
+    const failed = results.find(result => result.status === "rejected");
+    if (failed) throw failed.reason;
   }
 
   async function pages(auth, path, current) {

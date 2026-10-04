@@ -356,6 +356,26 @@ def test_paper_routes_are_additive_and_strict(tmp_path):
         assert not any("paper-verdict" in p for p in paths)
 
 
+@pytest.mark.parametrize("path", ["", "/p/matrix", "/p/audit-runs"])
+def test_unmigrated_workflow_returns_safe_503_without_breaking_p0(tmp_path, monkeypatch, path):
+    from psycopg.errors import UndefinedTable
+
+    app = create_app(Settings(data_dir=tmp_path))
+
+    async def missing(*args, **kwargs):
+        raise UndefinedTable("private SQL connection details must not reach the browser")
+
+    monkeypatch.setattr(app.state.paper_workflow_store, "list_projects", missing)
+    monkeypatch.setattr(app.state.paper_workflow_store, "_project", missing)
+    with TestClient(app) as client:
+        response = client.get("/api/v1/projects" + path)
+        assert response.status_code == 503
+        assert "migrations" in response.json()["detail"]
+        assert "private SQL" not in response.text
+        assert client.get("/healthz").status_code == 200
+        assert client.get("/").status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_cached_provider_result_survives_missing_full_checkpoint(paper_store, monkeypatch):
     runs, owner, project, links = await seeded(paper_store)
@@ -371,6 +391,9 @@ async def test_cached_provider_result_survives_missing_full_checkpoint(paper_sto
         owner, project, run.run_id, item.item_id, execute_body(item), provider
     )
     assert failed.status == "failed" and failed.retry_allowed
+    runs.settings.paper_run_provider_limit = 1
+    preflight = (await runs.get(owner, project, run.run_id)).quota
+    assert preflight.provider_calls_available == 0 and preflight.runnable_now == 1
     monkeypatch.setattr(runs, "checkpoint", original)
     done = await runs.execute(
         owner, project, run.run_id, item.item_id, execute_body(item), provider
@@ -388,6 +411,9 @@ async def test_cancellation_unknown_no_automatic_second_call(paper_store):
     failed = (await runs.get(owner, project, run.run_id)).items[0]
     assert failed.status == "failed" and not failed.retry_allowed
     assert failed.error_code == "provider_outcome_unknown"
+    preflight = (await runs.get(owner, project, run.run_id)).quota
+    assert preflight.runnable_now == 0 and preflight.blocked == 1
+    assert preflight.reason == "provider_outcome_unknown"
     await runs.execute(owner, project, run.run_id, item.item_id, execute_body(item), provider)
     assert provider.calls == 1
 
@@ -427,6 +453,17 @@ async def test_plan_rollback_canonical_input_and_safe_retry_bound(paper_store, m
         owner, project, run.run_id, item.item_id, execute_body(item), provider
     )
     assert final.attempts == 3 and not final.retry_allowed and provider.calls == 1
+    assert (await runs.get(owner, project, run.run_id)).quota.runnable_now == 0
+
+
+@pytest.mark.asyncio
+async def test_running_item_is_not_advertised_as_runnable(paper_store):
+    runs, owner, project, links = await seeded(paper_store)
+    run = await runs.plan(owner, project, plan_body(links[:1]))
+    await runs.claim(owner, project, run.run_id, run.items[0].item_id, execute_body(run.items[0]))
+    preflight = (await runs.get(owner, project, run.run_id)).quota
+    assert preflight.runnable_now == 0 and preflight.blocked == 1
+    assert preflight.reason == "execution_in_progress"
 
 
 @pytest.mark.asyncio

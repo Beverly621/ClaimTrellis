@@ -322,14 +322,34 @@ class PaperRunStore:
         )
         available, reason = await self._budget(conn, owner, run, ip_hash=ip_hash)
         remaining = [i for i in result.items if i.status != "completed"]
-        free = sum(not i.use_judgment_provider for i in remaining)
-        runnable = min(len(remaining), available + free)
+        eligible = [
+            i
+            for i in remaining
+            if i.status != "running" and i.retry_allowed and i.attempts < self.MAX_ATTEMPTS
+        ]
+        # Recovery of an already checkpointed audit or cached terminal provider
+        # outcome needs no new model reservation, even when the budget is exhausted.
+        recoverable = set()
+        if eligible:
+            recovery = await conn.execute(
+                "SELECT i.item_id FROM paper_audit_items i WHERE i.project_id=? AND i.owner_user_id=? AND (i.checkpoint_json IS NOT NULL OR EXISTS (SELECT 1 FROM paper_provider_usage u WHERE u.item_id=i.item_id AND u.owner_user_id=i.owner_user_id AND u.status IN ('succeeded','failed'))) ",
+                (project, owner),
+            )
+            recoverable = {r["item_id"] for r in recovery}
+        free = sum(not i.use_judgment_provider or i.item_id in recoverable for i in eligible)
+        runnable = free + min(len(eligible) - free, available)
+        blocked_reason = (
+            reason
+            if len(eligible) > runnable
+            else next((i.error_code for i in remaining if i not in eligible and i.error_code), None)
+            or ("execution_in_progress" if any(i.status == "running" for i in remaining) else None)
+        )
         result.quota = PaperQuotaPreflight(
             requested_links=len(result.items),
             provider_calls_available=available,
             runnable_now=runnable,
             blocked=len(remaining) - runnable,
-            reason=reason if len(remaining) > runnable else None,
+            reason=blocked_reason if len(remaining) > runnable else None,
         )
         return result
 

@@ -11,6 +11,31 @@ test("candidate form preserves original exact span separately and requires human
 test("mapping confirmation explicitly requires uploaded source and identity declaration",()=>{const html=renderMapping({...row,mapping_status:"pending"},[{source_document_id:"s",filename:"<unsafe>.pdf",metadata:{title:"Study"},document_hash:"123456789012345"}]);assert.match(html,/name="identity"/);assert.match(html,/name="source"/);assert.match(html,/&lt;unsafe&gt;\.pdf/);assert.match(html,/Confirm identity/);});
 test("queue caps concurrency at two and skips completed/running/unsafe items",async()=>{let active=0,peak=0,calls=0;const done=[];await runQueue([{status:"completed"},{status:"running"},{status:"failed",retry_allowed:false},...Array.from({length:5},(_,n)=>({status:"pending",n}))],async i=>{active++;peak=Math.max(peak,active);calls++;await new Promise(r=>setTimeout(r,5));active--;return {...i,status:"completed"};},()=>true,r=>done.push(r),20);assert.equal(peak,2);assert.equal(calls,5);assert.equal(done.length,5);});
 test("quota-blocked result stops unscheduled calls, preserving partial completed items",async()=>{const calls=[];await runQueue([0,1,2,3].map(n=>({n,status:"pending"})),async i=>{calls.push(i.n);return {status:"quota_blocked"};},()=>true,()=>{},1);assert.deepEqual(calls,[0]);});
+test("transport failure stops unscheduled calls and drains the other in-flight worker",async()=>{
+  const calls=[],renders=[];let release,settled=false;
+  const gate=new Promise(resolve=>release=resolve),error=new Error("network failed");
+  const queue=runQueue([0,1,2,3].map(n=>({n,status:"pending"})),async i=>{
+    calls.push(i.n);if(i.n===0)throw error;await gate;return {...i,status:"completed"};
+  },()=>true,r=>renders.push(r.n));
+  const observed=queue.then(()=>assert.fail("must reject"),e=>{assert.equal(e,error);settled=true;});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(calls,[0,1]);assert.equal(settled,false);
+  release();await observed;assert.deepEqual(calls,[0,1]);assert.deepEqual(renders,[1]);
+});
+test("quota stop precedes a delayed render so the other worker cannot schedule a new call",async()=>{
+  const calls=[];let release;const gate=new Promise(resolve=>release=resolve);
+  const queue=runQueue([0,1,2].map(n=>({n,status:"pending"})),async i=>{
+    calls.push(i.n);return {status:i.n===0 ? "quota_blocked" : "completed"};
+  },()=>true,async r=>{if(r.status==="quota_blocked")await gate;});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(calls,[0,1]);release();await queue;assert.deepEqual(calls,[0,1]);
+});
+test("result rendering failure also stops unscheduled requests",async()=>{
+  const error=new Error("renderer failed"),calls=[];
+  await assert.rejects(runQueue([0,1].map(n=>({n,status:"pending"})),async i=>{
+    calls.push(i.n);return {status:"completed"};
+  },()=>true,()=>{throw error;},1),e=>e===error);assert.deepEqual(calls,[0]);
+});
 test("identity change discards late item result and schedules nothing further",async()=>{let current=true;const calls=[],renders=[];await runQueue([0,1,2].map(n=>({n,status:"pending"})),async i=>{calls.push(i.n);current=false;return {status:"completed"};},()=>current,r=>renders.push(r),1);assert.deepEqual(calls,[0]);assert.deepEqual(renders,[]);});
 test("persisted matrix pagination does not silently omit later rows",async()=>{const paths=[];const result=await pages({request:async path=>{paths.push(path);const offset=Number(new URL(path,"http://local").searchParams.get("offset"));return {total:201,rows:Array.from({length:offset?1:200},(_,n)=>({row_id:offset+n})),counts:{audit_pending:201}};}},"/api/v1/projects/p/matrix",()=>true);assert.equal(result.rows.length,201);assert.equal(paths.length,2);});
 test("next pending review reuses the existing ordinary audit console",()=>{assert.equal(nextReview([{...row,workflow_state:"accepted"},row],"p"),"/?audit=audit%3C%26&project=p#result");assert.equal(nextReview([],"p"),null);});
