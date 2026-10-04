@@ -4,6 +4,8 @@ import os
 
 from fastapi import FastAPI
 
+os.environ.setdefault("CLAIM_TRELLIS_API_DOCS_ENABLED", "false")
+
 if not os.environ.get("DATABASE_URL"):
     os.environ.setdefault("CLAIM_TRELLIS_DATA_DIR", "/tmp/claim-trellis")
 
