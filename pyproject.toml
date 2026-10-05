@@ -46,7 +46,7 @@ dev = [
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
 ]
-retrieval-lab = ["sentence-transformers>=3.4,<6"]
+retrieval-lab = ["sentence-transformers>=3.4,<7"]
 e2e = ["playwright>=1.51,<2"]
 
 [project.scripts]
