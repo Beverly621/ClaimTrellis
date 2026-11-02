@@ -42,7 +42,7 @@ Issues = "https://github.com/Beverly621/claim-trellis/issues"
 dev = [
   "mypy>=1.14,<2",
   "pytest>=8.3,<9",
-  "pytest-asyncio>=0.25,<1",
+  "pytest-asyncio>=0.25,<2",
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
 ]
